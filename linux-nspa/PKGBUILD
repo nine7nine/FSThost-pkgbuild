@@ -1,0 +1,342 @@
+# Maintainer: Jordan Johnston <johnstonljordan@gmail.com>
+# Contributor: Jan Alexander Steffens (heftig) <jan.steffens@gmail.com>
+
+pkgbase=linux-nspa
+pkgver=5.6.15.arch1
+pkgrel=1
+pkgdesc='Linux'
+_srctag=v${pkgver%.*}-${pkgver##*.}
+url="https://git.archlinux.org/linux.git/log/?h=$_srctag"
+arch=(x86_64)
+license=(GPL2)
+makedepends=(
+  bc kmod libelf
+  xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick
+  git
+)
+options=('!strip')
+_srcname=archlinux-linux
+source=(
+  "$_srcname::git+https://git.archlinux.org/linux.git?signed#tag=$_srctag"
+  config         # the main kernel config file
+  sphinx-workaround.patch
+        # [Fixes/misc] 
+        pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch
+        designware-i2c_IRQF_NO_THREAD.patch
+        nvme-silence_irqdisable_suspend_warnings.patch
+        # [fromlist / fixes]
+        Reset-realtek-bluetooth-devices-during-user-suspend.patch
+        x86-rdrand_do_sanity_check_on_boot.patch
+        # [CLear Linux]
+        0108-smpboot-reuse-timer-calibration.patch
+        0113-kernel-time-reduce-ntp-wakeups.patch
+        0105-ksm-wakeups.patch
+        0104-pci-pme-wakeups.patch
+        0101-i8042-decrease-debug-message-level-to-info.patch
+        0111-give-rdrand-some-credit.patch
+        0124-locking-rwsem-spin-faster.patch
+        futex-wait-multiple-5.2.1.patch
+        futex-wait-multiple-5.5-deadlock_fix.patch
+        # [Graysky, linux-ck] gcc optimization patch
+        enable_additional_cpu_optimizations_for_gcc_v9.1+_kernel_v4.13+.patch
+        # PeterZ percpu-rwsem v2
+        0001-locking-percpu-rwsem-lockdep-Make-percpu-rwsem-use-i.patch
+        0002-locking-percpu-rwsem-Convert-to-bool.patch
+        0003-locking-percpu-rwsem-Move-__this_cpu_inc-into-the-sl.patch
+        0004-locking-percpu-rwsem-Extract-__percpu_down_read_tryl.patch
+        0005-locking-percpu-rwsem-Remove-the-embedded-rwsem.patch
+        0006-locking-percpu-rwsem-Fold-__percpu_up_read.patch
+        0007-locking-percpu-rwsem-Add-might_sleep-for-writer-lock.patch
+        # swait from RT, destined for mainline
+        0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch
+        0002-sched-swait-Add-swait_event_lock_irq.patch
+        0003-workqueue-Use-swait-for-wq_manager_wait.patch
+        0004-workqueue-Convert-the-locks-to-raw-type.patch
+)
+validpgpkeys=(
+  'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
+  '647F28654894E3BD457199BE38DBBDC86092693E'  # Greg Kroah-Hartman
+  'A2FF3A36AAA56654109064AB19802F8B0D70FC30'  # Jan Alexander Steffens (heftig)
+)
+sha256sums=('SKIP'
+            'd7e0e4ccae121db54807d48a5bff4c663c6527a53aa3fc1466a98db486d9f74d'
+            '8cb21e0b3411327b627a9dd15b8eb773295a0d2782b1a41b2a8839d1b2f5778c'
+            '1e5891100e91830f3cd89ddc88b0373d0d617a4aca2ff214aaabc517d08b633d'
+            '10fdab4c1deaa6938be3acb992eac686b716ba08e40bff9b838f439494aa49a0'
+            'f52f543deeef2534ba44d437820c535ac7235eaa8fd1d37e9da817866f5c81f9'
+            'e6e1ba732cf5b4ecabde2ded5e90d24c02165c19379024665e13036995533fd4'
+            '3abe6ced007b908a0755f71804fb760eba781f1120241394bcffe505469f7cbb'
+            'e8ec1aa0e67e37b377e5a9d48416ec6e43d90e7121c29ba012096479c66f4880'
+            'c2c89d27c260497f2d31ca6dd60821c19cc3f283aaa8903dd19ace78c2011365'
+            'f14c11f7d511b5f3fb13e5bcec1f0a8968788396929472ded80c4138aab664c8'
+            'c50395c258ce9d73dbad379d677d51daff4b9c3911feb959cb2a1ee4053654c5'
+            'f2b93161699370512d4efe0f31b686d99af3a54ab629c78d29d64d4ecd14442b'
+            'c1445df6554b80b7b681d4b52ff62527f36b52b1b7d9b59cb68caec967128ced'
+            'fbb5cf8e3e44477e06894a8e4e42e44a83682556cbc05bc47334941cbd5fb107'
+            'cbb164c3bc0550018924f75713a76abdc51aa2c3d1b37c12414b80ccb4b96662'
+            '89f715d6d4764acf0d41b0c596fe7187bf08e5fd2870dc118ba6d33be93249fc'
+            '61ada832cd61aec423fb12451b63928132ba15e8ee136a96dc733b02ee22a1ba'
+            '0f5260e3209a09e8ef12cf520f8cfb6fab97a8a2a1031ada64b95ab8f0ded9fd'
+            '55d58ee931c9b241fcd74fe089ddb35cbf62bc73c30fcdfd089f3141a3e81980'
+            'f85d75fccd5090f855d253ade673b4bdff56eac41cef012d4a86eb10f86191a3'
+            '52c1f7a3dd80d1de3b3a7f27b1e0b9f514e9165a3a8d6a52eed6856cae8c7457'
+            'f1f990020703cd3ca95b311736b39a3253b68bbfb344c2fada4780eeb4d0e961'
+            'ff41a93df67dc9d0354eb33eb27cce285c991bca64e91d9a1d77d22c0ed46622'
+            'd7a61fff0907f2bb015252daaeb921b37787edae394c1f89328dbec347b46d8a'
+            '650b37be83aae69bc29af8e51757341ec21c550bcffa92af304ba95b4b8a8821'
+            'aef1571a6ba39f21ed33b1adfc58a1e431dfa6b38b20b061d8398238992449b7'
+            'a6f4ff72b5ba7a57cd5673424deb0bd137fa22b2523f7ac86abb86b435cda8fc'
+            '31367679a5115c3d23c4825b0c40aa8aa7a4521c05441b309dbf859359bd4048')
+
+export KBUILD_BUILD_HOST=archlinux
+export KBUILD_BUILD_USER=$pkgbase
+export KBUILD_BUILD_TIMESTAMP="$(date -Ru${SOURCE_DATE_EPOCH:+d @$SOURCE_DATE_EPOCH})"
+
+prepare() {
+  cd $_srcname
+
+  echo "Setting version..."
+  scripts/setlocalversion --save-scmversion
+  echo "-$pkgrel" > localversion.10-pkgrel
+  echo "${pkgbase#linux}" > localversion.20-pkgname
+
+  msg2 "sphinx-workaround.patch..."
+  patch -Np1 -i ../"sphinx-workaround.patch"
+
+##[My Fixes]
+
+  # In order to use 'threaded interrupts', the below drivers must be patched,
+  # as amd-pinctl is not an rt-compliant driver && because designware i2c driver
+  # will spike a cpu to around 60-70% non-stop :/
+
+  msg2 "pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch..."
+  patch -Np1 -i ../"pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch"
+
+  msg2 "designware-i2c_IRQF_NO_THREAD.patch..."
+  patch -Np1 -i ../"designware-i2c_IRQF_NO_THREAD.patch"
+
+  msg2 "nvme-silence_irqdisable_suspend_warnings.patch..."
+  patch -Np1 -i ../"nvme-silence_irqdisable_suspend_warnings.patch"
+
+#  msg2 "Reset-realtek-bluetooth-devices-during-user-suspend.patch..."
+#  patch -Np1 -i ../"Reset-realtek-bluetooth-devices-during-user-suspend.patch"
+
+##[Clear Linux]
+
+  msg2 "0108-smpboot-reuse-timer-calibration.patch..."
+  patch -Np1 -i ../"0108-smpboot-reuse-timer-calibration.patch"
+
+  msg2 "0113-kernel-time-reduce-ntp-wakeups.patch..."
+  patch -Np1 -i ../"0113-kernel-time-reduce-ntp-wakeups.patch"
+
+  msg2 "0105-ksm-wakeups.patch..."
+  patch -Np1 -i ../"0105-ksm-wakeups.patch"
+
+  msg2 "0104-pci-pme-wakeups.patch..."
+  patch -Np1 -i ../"0104-pci-pme-wakeups.patch"
+
+  msg2 "0101-i8042-decrease-debug-message-level-to-info.patch..."
+  patch -Np1 -i ../"0101-i8042-decrease-debug-message-level-to-info.patch"
+
+  msg2 "0111-give-rdrand-some-credit.patch..."
+  patch -Np1 -i ../"0111-give-rdrand-some-credit.patch"
+
+  msg2 "0124-locking-rwsem-spin-faster.patch..."
+  patch -Np1 -i ../"0124-locking-rwsem-spin-faster.patch"
+  
+# Implement futex-wait-multiple.  
+
+#  msg2 "futex-wait-multiple-5.2.1.patch"
+#  patch -Np1 -i ../"futex-wait-multiple-5.2.1.patch"
+  
+  msg2 "futex-wait-multiple-5.5-deadlock_fix.patch"
+  patch -Np1 -i ../"futex-wait-multiple-5.5-deadlock_fix.patch"
+
+##[Graysky, linux-ck]
+
+  # https://github.com/graysky2/kernel_gcc_patch
+
+  msg2 "enable_additional_cpu_optimizations_for_gcc_v9.1+_kernel_v4.13+.patch ..."
+  patch -Np1 -i ../"enable_additional_cpu_optimizations_for_gcc_v9.1+_kernel_v4.13+.patch"
+  
+##[PeterZ's percpu-rwsem rewrite]  
+
+  msg2 "0001-locking-percpu-rwsem-lockdep-Make-percpu-rwsem-use-i.patch"
+  patch -Np1 -i ../"0001-locking-percpu-rwsem-lockdep-Make-percpu-rwsem-use-i.patch"
+
+  msg2 "0002-locking-percpu-rwsem-Convert-to-bool.patch"
+  patch -Np1 -i ../"0002-locking-percpu-rwsem-Convert-to-bool.patch"
+
+  msg2 "0003-locking-percpu-rwsem-Move-__this_cpu_inc-into-the-sl.patch"
+  patch -Np1 -i ../"0003-locking-percpu-rwsem-Move-__this_cpu_inc-into-the-sl.patch"
+
+  msg2 "0004-locking-percpu-rwsem-Extract-__percpu_down_read_tryl.patch"
+  patch -Np1 -i ../"0004-locking-percpu-rwsem-Extract-__percpu_down_read_tryl.patch"
+
+  msg2 "0005-locking-percpu-rwsem-Remove-the-embedded-rwsem.patch"
+  patch -Np1 -i ../"0005-locking-percpu-rwsem-Remove-the-embedded-rwsem.patch"
+
+  msg2 "0006-locking-percpu-rwsem-Fold-__percpu_up_read.patch"
+  patch -Np1 -i ../"0006-locking-percpu-rwsem-Fold-__percpu_up_read.patch"
+
+  msg2 "0007-locking-percpu-rwsem-Add-might_sleep-for-writer-lock.patch"
+  patch -Np1 -i ../"0007-locking-percpu-rwsem-Add-might_sleep-for-writer-lock.patch"
+
+##[Swait related patches, from RT]
+
+  msg2 "0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch"
+  patch -Np1 -i ../"0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch"
+
+  msg2 "0002-sched-swait-Add-swait_event_lock_irq.patch"
+  patch -Np1 -i ../"0002-sched-swait-Add-swait_event_lock_irq.patch"
+
+  msg2 "0003-workqueue-Use-swait-for-wq_manager_wait.patch"
+  patch -Np1 -i ../"0003-workqueue-Use-swait-for-wq_manager_wait.patch"
+
+  msg2 "0004-workqueue-Convert-the-locks-to-raw-type.patch"
+  patch -Np1 -i ../"0004-workqueue-Convert-the-locks-to-raw-type.patch"
+
+  echo "Setting config..."
+  cp ../config .config
+  make olddefconfig
+
+  make -s kernelrelease > version
+  echo "Prepared $pkgbase version $(<version)"
+}
+
+build() {
+  cd $_srcname
+  make all -j6
+  make htmldocs
+}
+
+_package() {
+  pkgdesc="The $pkgdesc kernel and modules"
+  depends=(coreutils kmod initramfs)
+  optdepends=('crda: to set the correct wireless channels of your country'
+              'linux-firmware: firmware images needed for some devices')
+  provides=(VIRTUALBOX-GUEST-MODULES WIREGUARD-MODULE)
+  replaces=(virtualbox-guest-modules-arch wireguard-arch)
+
+  cd $_srcname
+  local kernver="$(<version)"
+  local modulesdir="$pkgdir/usr/lib/modules/$kernver"
+
+  echo "Installing boot image..."
+  # systemd expects to find the kernel here to allow hibernation
+  # https://github.com/systemd/systemd/commit/edda44605f06a41fb86b7ab8128dcf99161d2344
+  install -Dm644 "$(make -s image_name)" "$modulesdir/vmlinuz"
+
+  # Used by mkinitcpio to name the kernel
+  echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
+
+  echo "Installing modules..."
+  make INSTALL_MOD_PATH="$pkgdir/usr" modules_install
+
+  # remove build and source links
+  rm "$modulesdir"/{source,build}
+}
+
+_package-headers() {
+  pkgdesc="Headers and scripts for building modules for the $pkgdesc kernel"
+
+  cd $_srcname
+  local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
+
+  echo "Installing build files..."
+  install -Dt "$builddir" -m644 .config Makefile Module.symvers System.map \
+    localversion.* version vmlinux
+  install -Dt "$builddir/kernel" -m644 kernel/Makefile
+  install -Dt "$builddir/arch/x86" -m644 arch/x86/Makefile
+  cp -t "$builddir" -a scripts
+
+  # add objtool for external module building and enabled VALIDATION_STACK option
+  install -Dt "$builddir/tools/objtool" tools/objtool/objtool
+
+  # add xfs and shmem for aufs building
+  mkdir -p "$builddir"/{fs/xfs,mm}
+
+  echo "Installing headers..."
+  cp -t "$builddir" -a include
+  cp -t "$builddir/arch/x86" -a arch/x86/include
+  install -Dt "$builddir/arch/x86/kernel" -m644 arch/x86/kernel/asm-offsets.s
+
+  install -Dt "$builddir/drivers/md" -m644 drivers/md/*.h
+  install -Dt "$builddir/net/mac80211" -m644 net/mac80211/*.h
+
+  # http://bugs.archlinux.org/task/13146
+  install -Dt "$builddir/drivers/media/i2c" -m644 drivers/media/i2c/msp3400-driver.h
+
+  # http://bugs.archlinux.org/task/20402
+  install -Dt "$builddir/drivers/media/usb/dvb-usb" -m644 drivers/media/usb/dvb-usb/*.h
+  install -Dt "$builddir/drivers/media/dvb-frontends" -m644 drivers/media/dvb-frontends/*.h
+  install -Dt "$builddir/drivers/media/tuners" -m644 drivers/media/tuners/*.h
+
+  echo "Installing KConfig files..."
+  find . -name 'Kconfig*' -exec install -Dm644 {} "$builddir/{}" \;
+
+  echo "Removing unneeded architectures..."
+  local arch
+  for arch in "$builddir"/arch/*/; do
+    [[ $arch = */x86/ ]] && continue
+    echo "Removing $(basename "$arch")"
+    rm -r "$arch"
+  done
+
+  echo "Removing documentation..."
+  rm -r "$builddir/Documentation"
+
+  echo "Removing broken symlinks..."
+  find -L "$builddir" -type l -printf 'Removing %P\n' -delete
+
+  echo "Removing loose objects..."
+  find "$builddir" -type f -name '*.o' -printf 'Removing %P\n' -delete
+
+  echo "Stripping build tools..."
+  local file
+  while read -rd '' file; do
+    case "$(file -bi "$file")" in
+      application/x-sharedlib\;*)      # Libraries (.so)
+        strip -v $STRIP_SHARED "$file" ;;
+      application/x-archive\;*)        # Libraries (.a)
+        strip -v $STRIP_STATIC "$file" ;;
+      application/x-executable\;*)     # Binaries
+        strip -v $STRIP_BINARIES "$file" ;;
+      application/x-pie-executable\;*) # Relocatable binaries
+        strip -v $STRIP_SHARED "$file" ;;
+    esac
+  done < <(find "$builddir" -type f -perm -u+x ! -name vmlinux -print0)
+
+  echo "Adding symlink..."
+  mkdir -p "$pkgdir/usr/src"
+  ln -sr "$builddir" "$pkgdir/usr/src/$pkgbase"
+}
+
+_package-docs() {
+  pkgdesc="Documentation for the $pkgdesc kernel"
+
+  cd $_srcname
+  local builddir="$pkgdir/usr/lib/modules/$(<version)/build"
+
+  echo "Installing documentation..."
+  local src dst
+  while read -rd '' src; do
+    dst="${src#Documentation/}"
+    dst="$builddir/Documentation/${dst#output/}"
+    install -Dm644 "$src" "$dst"
+  done < <(find Documentation -name '.*' -prune -o ! -type d -print0)
+
+  echo "Adding symlink..."
+  mkdir -p "$pkgdir/usr/share/doc"
+  ln -sr "$builddir/Documentation" "$pkgdir/usr/share/doc/$pkgbase"
+}
+
+pkgname=("$pkgbase" "$pkgbase-headers" "$pkgbase-docs")
+for _p in "${pkgname[@]}"; do
+  eval "package_$_p() {
+    $(declare -f "_package${_p#$pkgbase}")
+    _package${_p#$pkgbase}
+  }"
+done
+
+# vim:set ts=8 sts=2 sw=2 et:

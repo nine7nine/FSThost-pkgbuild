@@ -1,0 +1,27 @@
+diff -ur a/drivers/i2c/busses/i2c-designware-master.c b/drivers/i2c/busses/i2c-designware-master.c
+--- a/drivers/i2c/busses/i2c-designware-master.c	2019-09-15 14:00:09.402574170 -0400
++++ b/drivers/i2c/busses/i2c-designware-master.c	2019-09-17 23:25:51.394814055 -0400
+@@ -715,9 +715,9 @@
+ 	i2c_set_adapdata(adap, dev);
+ 
+ 	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
+-		irq_flags = IRQF_NO_SUSPEND;
++		irq_flags = IRQF_NO_SUSPEND | IRQF_NO_THREAD;
+ 	} else {
+-		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND;
++		irq_flags = IRQF_SHARED | IRQF_COND_SUSPEND | IRQF_NO_THREAD;
+ 	}
+ 
+ 	i2c_dw_disable_int(dev);
+diff -ur a/drivers/i2c/busses/i2c-designware-slave.c b/drivers/i2c/busses/i2c-designware-slave.c
+--- a/drivers/i2c/busses/i2c-designware-slave.c	2019-09-15 14:00:15.472686365 -0400
++++ b/drivers/i2c/busses/i2c-designware-slave.c	2019-09-17 23:25:02.280247205 -0400
+@@ -271,7 +271,7 @@
+ 	i2c_set_adapdata(adap, dev);
+ 
+ 	ret = devm_request_irq(dev->dev, dev->irq, i2c_dw_isr_slave,
+-			       IRQF_SHARED, dev_name(dev->dev), dev);
++			       IRQF_SHARED | IRQF_NO_THREAD, dev_name(dev->dev), dev);
+ 	if (ret) {
+ 		dev_err(dev->dev, "failure requesting irq %i: %d\n",
+ 			dev->irq, ret);

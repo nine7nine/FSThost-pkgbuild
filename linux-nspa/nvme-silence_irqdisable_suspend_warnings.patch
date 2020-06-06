@@ -1,0 +1,12 @@
+--- a/drivers/nvme/host/pci.c	2019-10-02 12:25:52.639039980 -0400
++++ b/drivers/nvme/host/pci.c	2019-10-02 12:27:13.890786069 -0400
+@@ -1059,6 +1059,9 @@
+ 	u16 start, end;
+ 	int found;
+ 
++       if (!nvme_cqe_pending(nvmeq))
++               return 0;
++
+ 	/*
+ 	 * For a poll queue we need to protect against the polling thread
+ 	 * using the CQ lock.  For normal interrupt driven threads we have
