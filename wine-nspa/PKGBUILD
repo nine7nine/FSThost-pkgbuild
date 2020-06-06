@@ -1,0 +1,264 @@
+# Maintainer: Jordan Johnston <johnstonljordan@gmail.com>
+# Contributor: Felix Yan <felixonmars@archlinux.org>
+# Contributor: Sven-Hendrik Haase <sh@lutzhaase.com>
+# Contributor: Jan "heftig" Steffens <jan.steffens@gmail.com>
+# Contributor: Eduardo Romero <eduardo@archlinux.org>
+# Contributor: Giovanni Scafora <giovanni@archlinux.org>
+
+pkgname=wine-nspa
+pkgver=5.9
+pkgrel=4
+
+_pkgbasever=${pkgver/rc/-rc}
+
+source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
+        "wine-staging-v$_pkgbasever.tar.gz::https://github.com/wine-staging/wine-staging/archive/v$_pkgbasever.tar.gz"
+        30-win32-aliases.conf
+        wine-binfmt.conf
+        # the original hybrid synchronization aka: from Muse Research's wine fork
+        # *broken on modern Wine (2.9+). 
+        ntdll_pipe_sync_and_pipe_thread_safe.patch
+        # Muse Research's patch to set RT threads without wineserver. 
+        # *broken on modern wine (2.9+). ***needs to be ported to wine with esync/fsync***
+        set-realtime-priority-without-wineserver.patch   
+        use_clock_monotonic.patch
+        fsync-staging.patch
+        fsync-staging-no_alloc_handle.patch
+        fsync-spincounts.patch
+        0003-Exit-expand-function-early-if-there-are-no-children.patch
+        0056-allow-WINEDLLPATH-override.patch
+        ableton_file-read-write-diff.patch
+        disable-winedbg-auto-crash-dialog.patch
+        disable-wine-prefix-update-window.patch
+        hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch
+        NI-drag-and-drop.patch
+        increase_thread_prio.patch
+        )
+sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
+            'SKIP'
+            '8fcf448be21edc0ccf8afef75013298c8f1634b51cd4d927ee5a1d039552d7c29609f65f283519b6561d09eb6eeae91fa6db70b9e78e4fd8bb5318408b39fb33'
+            '6e54ece7ec7022b3c9d94ad64bdf1017338da16c618966e8baf398e6f18f80f7b0576edf1d1da47ed77b96d577e4cbb2bb0156b0b11c183a0accf22654b0a2bb'
+            'bdde7ae015d8a98ba55e84b86dc05aca1d4f8de85be7e4bd6187054bfe4ac83b5a20538945b63fb073caab78022141e9545685e4e3698c97ff173cf30859e285'
+            '0536e071b5c8197f358184bd598fb4041b8de17b2e05ed34fb9652331dbf9e29d8aaa2de3083aae4fe7eb28f969ad50e3e97d79050208c5956d28fd621e38161'
+            '5af20bc5c3962462f32c7eb0ef0de1dc8bd1daf66741a6d17c3b16454d6b2cff657cffa8edbaf46ee923d7cdb91472099d03c1c9be15744dd938953187578ef6'
+            '978926da8ceb175ccc28e343a973c5f821fdefb42af81bd57ffb0baa9a959203b8e34f28c6454454be2f64e4d71c7f7702331f0090a86138362c47e6ab6409ac'
+            '9bcc55a673b2f4f565e8dd2c4a11975831b670d0dc738fc8d2514d4bd022266a3c0c828684d600effefdcec64e2612547012915eb238cf70027eaeb78dd90a0b'
+            'd8fffe4c9ca03a051d6a80d028132519a89dfe7016ca53a7e7a040c6f11538a12a9ccd978c979b3740eb899bb262cd2c564904e60013a04fe1b794d16590f64e'
+            '7969dd18fc508ea3f002df261c8ce89e08cf0cae6b789da054a6aa1dfa668a7718795b80a724bc90030f430cd6274a90d1f0a88ef1f8cba16135a408538c0b6e'
+            'b748ff7297179c117ab59b7fcef4169d7fffe762bc6258d4db94cbe1932bee7f7b0f3e99d593e8857effea5a14451e2bad7df237ea338f6b2d2c585b1973b566'
+            '4891692e757c06a65c2905ce4927a1e18e89e10200f58f8d6d1cb6f969cbd509eca6f5aee89c1d0b6cb4fbee661036db9bcddc9642971ba8c6b476a328c36138'
+            'a65c5fd3ce228a37ec0236f8fb349e308434bb064aa088d3ba51fbf20a275d8bed87ad7f96e7570a09fa8baad698df5ba3df254dff236fda69374431911b0017'
+            '3d7f327d7054f6d2e19171784695db7560ee828db9ba518536a0e867449eef06000da519a56fd137385089aef02a8b965f339192435e931f795cf9ede98b49f5'
+            'facb308126f1db4b82f6cfa939582899dc5ccc992eb784d4e90dec807aa64c43491c345f62543378907c15d4da2df1cf2a72a70c7b9632940db1f2659b70c124'
+            '41d78d143e8477a9671038989bd1ae85fa1addd6b0cf062624775046a424c560e2745657f314be91b9b4ab757ce6f4b5381d78c63d8dec32e89379203a72891b'
+            'd0862315daa26c521921931511941bd92e93a8a32368f3f4137a8c879b1d9ef536486be19eb1baf3dbef4c5283caf6e7defae788431b3fb4e579a84a92c9844d'
+            '25309913ae9ef3a31b3b953d171aa5646e0658e6eaca7d9a0a357ba0982f45925ae7948524ee79cc16db4b1b5ee58f39cce7a538691161c3dce6c4f5be69a58a')
+validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
+              DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
+
+pkgdesc="A compatibility layer for running Windows programs - Staging branch"
+url="https://www.wine-staging.com"
+arch=(x86_64)
+options=(staticlibs)
+license=(LGPL)
+
+depends=(
+  attr             lib32-attr
+  fontconfig       lib32-fontconfig
+  lcms2            lib32-lcms2
+  libxml2          lib32-libxml2
+  libxcursor       lib32-libxcursor
+  libxrandr        lib32-libxrandr
+  libxdamage       lib32-libxdamage
+  libxi            lib32-libxi
+  gettext          lib32-gettext
+  freetype2        lib32-freetype2
+  glu              lib32-glu
+  libsm            lib32-libsm
+  gcc-libs         lib32-gcc-libs
+  libpcap          lib32-libpcap
+  faudio           lib32-faudio
+  desktop-file-utils
+)
+
+makedepends=(autoconf ncurses bison perl fontforge flex
+  'gcc>=4.5.0-2'
+  giflib                lib32-giflib
+  libpng                lib32-libpng
+  gnutls                lib32-gnutls
+  libxinerama           lib32-libxinerama
+  libxcomposite         lib32-libxcomposite
+  libxmu                lib32-libxmu
+  libxxf86vm            lib32-libxxf86vm
+  libldap               lib32-libldap
+  mpg123                lib32-mpg123
+  openal                lib32-openal
+  v4l-utils             lib32-v4l-utils
+  alsa-lib              lib32-alsa-lib
+  libxcomposite         lib32-libxcomposite
+  mesa                  lib32-mesa
+  mesa-libgl            lib32-mesa-libgl
+  opencl-icd-loader     lib32-opencl-icd-loader
+  libxslt               lib32-libxslt
+  libpulse              lib32-libpulse
+  libva                 lib32-libva
+  gtk3                  lib32-gtk3
+  gst-plugins-base-libs lib32-gst-plugins-base-libs
+  vulkan-icd-loader     lib32-vulkan-icd-loader
+  sdl2                  lib32-sdl2
+  vkd3d                 lib32-vkd3d
+  libcups               lib32-libcups
+  sane
+  libgphoto2
+  gsm
+  ffmpeg
+  samba
+  opencl-headers
+)
+
+optdepends=(
+  giflib                lib32-giflib
+  libpng                lib32-libpng
+  libldap               lib32-libldap
+  gnutls                lib32-gnutls
+  mpg123                lib32-mpg123
+  openal                lib32-openal
+  v4l-utils             lib32-v4l-utils
+  libpulse              lib32-libpulse
+  alsa-plugins          lib32-alsa-plugins
+  alsa-lib              lib32-alsa-lib
+  libjpeg-turbo         lib32-libjpeg-turbo
+  libxcomposite         lib32-libxcomposite
+  libxinerama           lib32-libxinerama
+  ncurses               lib32-ncurses
+  opencl-icd-loader     lib32-opencl-icd-loader
+  libxslt               lib32-libxslt
+  libva                 lib32-libva
+  gtk3                  lib32-gtk3
+  gst-plugins-base-libs lib32-gst-plugins-base-libs
+  vulkan-icd-loader     lib32-vulkan-icd-loader
+  sdl2                  lib32-sdl2
+  vkd3d                 lib32-vkd3d
+  sane
+  libgphoto2
+  gsm
+  ffmpeg
+  cups
+  samba           dosbox
+)
+
+provides=("wine=$pkgver" "wine-wow64=$pkgver")
+conflicts=('wine' 'wine-wow64' 'wine-staging')
+install=wine.install
+
+prepare() {
+  # Allow ccache to work
+  mv wine-$_pkgbasever $pkgname
+
+  # apply wine-staging patchset
+  pushd wine-staging-$_pkgbasever/patches
+  ./patchinstall.sh DESTDIR="$srcdir/$pkgname" --all
+  popd
+
+  # Doesn't compile without remove these flags as of 4.10
+  export CFLAGS="${CFLAGS/-fno-plt/}"
+  export LDFLAGS="${LDFLAGS/,-z,now/}"
+
+  sed 's|OpenCL/opencl.h|CL/opencl.h|g' -i $pkgname/configure*
+
+  # Get rid of old build dirs
+  rm -rf $pkgname-{32,64}-build
+  mkdir $pkgname-{32,64}-build
+  
+  cd "${srcdir}/wine-nspa"
+  
+  msg "Applying use_clock_monotonic.patch"
+  patch -s -Np1 -i $srcdir/use_clock_monotonic.patch
+
+  msg "Applying fsync-staging.patch"
+  patch -s -Np1 -i $srcdir/fsync-staging.patch
+
+  msg "Applying fsync-staging-no_alloc_handle.patch"
+  patch -s -Np1 -i $srcdir/fsync-staging-no_alloc_handle.patch
+ 
+  msg "Applying fsync-spincounts.patch"
+  patch -s -Np1 -i $srcdir/fsync-spincounts.patch
+  
+  msg "Applying 0003-Exit-expand-function-early-if-there-are-no-children.patch"
+  patch -s -Np1 -i $srcdir/0003-Exit-expand-function-early-if-there-are-no-children.patch
+
+  msg "Applying 0056-allow-WINEDLLPATH-override.patch"
+  patch -s -Np1 -i $srcdir/0056-allow-WINEDLLPATH-override.patch
+
+  msg "Applying ableton_file-read-write-diff.patch"  
+  patch -s -Np1 -i $srcdir/ableton_file-read-write-diff.patch
+
+  msg "Applying disable-winedbg-auto-crash-dialog.patch"
+  patch -s -Np1 -i $srcdir/disable-winedbg-auto-crash-dialog.patch
+
+  msg "Applying disable-wine-prefix-update-window.patch"
+  patch -s -Np1 -i $srcdir/disable-wine-prefix-update-window.patch
+
+  msg "Applying hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch"
+  patch -s -Np1 -i $srcdir/hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch
+
+  msg "Applying NI-drag-and-drop.patch"
+  patch -s -Np1 -i $srcdir/NI-drag-and-drop.patch
+ 
+  msg "Applying increase_thread_prio.patch"
+  patch -s -Np1 -i $srcdir/increase_thread_prio.patch
+}
+
+build() {
+  cd "$srcdir"
+
+  msg2 "Building Wine-64..."
+
+  cd "$srcdir/$pkgname-64-build"
+  ../$pkgname/configure \
+    --prefix=/usr \
+    --libdir=/usr/lib \
+    --with-x \
+    --with-gstreamer \
+    --enable-win64 \
+    --with-xattr
+
+  make -j6
+
+  msg2 "Building Wine-32..."
+
+  export PKG_CONFIG_PATH="/usr/lib32/pkgconfig"
+  cd "$srcdir/$pkgname-32-build"
+  ../$pkgname/configure \
+    --prefix=/usr \
+    --with-x \
+    --with-gstreamer \
+    --with-xattr \
+    --libdir=/usr/lib32 \
+    --with-wine64="$srcdir/$pkgname-64-build"
+
+  make -j6
+}
+
+package() {
+  msg2 "Packaging Wine-32..."
+  cd "$srcdir/$pkgname-32-build"
+
+  make prefix="$pkgdir/usr" \
+    libdir="$pkgdir/usr/lib32" \
+    dlldir="$pkgdir/usr/lib32/wine" install
+
+  msg2 "Packaging Wine-64..."
+  cd "$srcdir/$pkgname-64-build"
+  make prefix="$pkgdir/usr" \
+    libdir="$pkgdir/usr/lib" \
+    dlldir="$pkgdir/usr/lib/wine" install
+
+  # Font aliasing settings for Win32 applications
+  install -d "$pkgdir"/etc/fonts/conf.{avail,d}
+  install -m644 "$srcdir/30-win32-aliases.conf" "$pkgdir/etc/fonts/conf.avail"
+  ln -s ../conf.avail/30-win32-aliases.conf "$pkgdir/etc/fonts/conf.d/30-win32-aliases.conf"
+  install -Dm 644 "$srcdir/wine-binfmt.conf" "$pkgdir/usr/lib/binfmt.d/wine.conf"
+}
+
+# vim:set ts=8 sts=2 sw=2 et:
