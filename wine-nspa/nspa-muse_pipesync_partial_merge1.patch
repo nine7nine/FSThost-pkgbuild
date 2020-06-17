@@ -1,0 +1,753 @@
+This code can't actually be used or enabled. it relies on ldt_section and we 
+can't use that in modern Wine. Eventually, I will figure out how to replace the
+old sync pipe code to use fsync.
+
+the interest here isn't the pipe sync - it's the code that moved certain TIME_CRITICAL
+threads out of wineserver (entirely). ref: the nspa_* prefixed functions.
+
+regardless, putting it in my tree now. (as it isn't invoked, there isn't a problem).
+
+ <johnstonljordan AT gmail.com>
+
+diff -pur a/dlls/ntdll/heap.c b/dlls/ntdll/heap.c
+--- a/dlls/ntdll/heap.c	2020-06-14 00:22:40.875173000 -0400
++++ b/dlls/ntdll/heap.c	2020-06-11 00:56:27.881452000 -0400
+@@ -45,6 +45,7 @@
+ #include "wine/rbtree.h"
+ #include "wine/debug.h"
+ #include "wine/server.h"
++#include "ntdll_misc.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(heap);
+ 
+@@ -213,6 +214,8 @@ static inline int ctzl(unsigned long x)
+ #endif
+ }
+ 
++static PIPEOBJ processHeapSemaphore;
++
+ /* mark a block of memory as free for debugging purposes */
+ static inline void mark_block_free( void *ptr, SIZE_T size, DWORD flags )
+ {
+@@ -1700,6 +1703,11 @@ HANDLE WINAPI RtlCreateHeap( ULONG flags
+     }
+     else if (!addr)
+     {
++	if (use_pipe_objects()) {
++       	    init_pipe_object(&processHeapSemaphore, SEMAPHORE_MAGIC, 0);
++            subheap->heap->critSection.LockSemaphore = &processHeapSemaphore;
++        }
++
+         processHeap = subheap->heap;  /* assume the first heap we create is the process main heap */
+         list_init( &processHeap->entry );
+     }
+diff -pur a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+--- a/dlls/ntdll/ntdll_misc.h	2020-06-14 00:22:49.457572000 -0400
++++ b/dlls/ntdll/ntdll_misc.h	2020-06-13 22:23:40.926977497 -0400
+@@ -236,6 +236,10 @@ extern HANDLE user_shared_data_init_done
+ extern NTSTATUS NTDLL_AddCompletion( HANDLE hFile, ULONG_PTR CompletionValue,
+                                      NTSTATUS CompletionStatus, ULONG Information, BOOL async) DECLSPEC_HIDDEN;
+ 
++#ifdef NSPA_RT
++    extern void nspa_remove_thread(pthread_t thread);
++#endif
++
+ /* locale */
+ extern LCID user_lcid, system_lcid;
+ extern DWORD ntdll_umbstowcs( const char* src, DWORD srclen, WCHAR* dst, DWORD dstlen ) DECLSPEC_HIDDEN;
+@@ -281,6 +285,22 @@ static inline void leave_critical_sectio
+ 
+ #endif  /* __WINE_WINE_PORT_H */
+ 
++#define EVENT_MAGIC         0x4556
++#define SEMAPHORE_MAGIC     0x5373
++#define MUTEX_MAGIC         0x4D55
++
++typedef struct _PIPEOBJ
++{
++    WORD            wMagic;
++    int             fd[2];        /* Pipe handles */
++    struct _PIPEOBJ* next;
++    struct _PIPEOBJ* prev;
++} PIPEOBJ, *LPPIPEOBJ;
++
++extern NTSTATUS close_pipe_object(HANDLE handle, BOOL freemem);
++extern NTSTATUS init_pipe_object(LPPIPEOBJ pobj, WORD type, int signaled);
++extern BOOL use_pipe_objects(void);
++
+ /* load order */
+ 
+ enum loadorder
+diff -pur a/dlls/ntdll/om.c b/dlls/ntdll/om.c
+--- a/dlls/ntdll/om.c	2020-06-14 00:22:49.391577000 -0400
++++ b/dlls/ntdll/om.c	2020-06-11 00:56:27.882452000 -0400
+@@ -496,6 +496,9 @@ NTSTATUS close_handle( HANDLE handle )
+  */
+ NTSTATUS WINAPI NtClose( HANDLE Handle )
+ {
++    if (HIWORD(Handle) != 0 && close_pipe_object(Handle, TRUE) == STATUS_SUCCESS && use_pipe_objects())
++        return(STATUS_SUCCESS);
++
+     return close_handle( Handle );
+ }
+ 
+diff -pur a/dlls/ntdll/sync.c b/dlls/ntdll/sync.c
+--- a/dlls/ntdll/sync.c	2020-06-14 00:22:49.409576000 -0400
++++ b/dlls/ntdll/sync.c	2020-06-13 13:36:02.435966546 -0400
+@@ -51,6 +51,8 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <time.h>
++#include <fcntl.h>
++
+ 
+ #include "ntstatus.h"
+ #define WIN32_NO_STATUS
+@@ -242,6 +244,288 @@ NTSTATUS validate_open_object_attributes
+     return STATUS_SUCCESS;
+ }
+ 
++/* -1 "check environment", 0 "don't use them", 1 "do use them" */
++static int s_usePipeObjects = -1;
++#define is_pipe_object(h) (s_usePipeObjects == 1 && h != INVALID_HANDLE_VALUE && HIWORD(h) != 0)
++#define is_pipe_event(h) (is_pipe_object(h) && ((LPPIPEOBJ)h)->wMagic == EVENT_MAGIC)
++#define is_pipe_semaphore(h) (is_pipe_object(h) && ((LPPIPEOBJ)h)->wMagic == SEMAPHORE_MAGIC)
++#define is_pipe_mutex(h) (is_pipe_object(h) && ((LPPIPEOBJ)h)->wMagic == MUTEX_MAGIC)
++
++static CRITICAL_SECTION csPipeObjs;
++static CRITICAL_SECTION_DEBUG critsect_debug =
++{
++    0, 0, &csPipeObjs,
++    { &critsect_debug.ProcessLocksList, &critsect_debug.ProcessLocksList },
++      0, 0, { (DWORD_PTR)(__FILE__ ": csPipeObjs") }
++};
++static CRITICAL_SECTION csPipeObjs = { &critsect_debug, -1, 0, 0, 0, 0 };
++
++static LPPIPEOBJ pipeobjs;
++static int pipe_count;
++
++/******************************************************************************
++ *  use_pipe_objects
++ */
++BOOL use_pipe_objects(void)
++{
++    if (s_usePipeObjects == -1) {
++        const char* env;
++        extern int __wine_main_argc;
++        extern char** __wine_main_argv;
++
++        s_usePipeObjects = 0;
++        env = getenv("PIPE_SYNC_FOR_APP");
++        if (env) {
++            /* note: PEB command line is not available when this is first called so use main args */
++            if (__wine_main_argc < 2)
++                ERR("bad __wine_main_argc: %d\n", __wine_main_argc);
++            else if (strstr(__wine_main_argv[1], env) != 0) {
++                MESSAGE("Enabling PIPE_SYNC_FOR_APP: %s (%s)\n", env, __wine_main_argv[1]);
++                s_usePipeObjects = 1;
++            }
++        }
++    }
++    return(s_usePipeObjects == 1);
++}
++
++/******************************************************************************
++ *  is_valid_pipe_object
++ */
++BOOL is_valid_pipe_object(HANDLE handle)
++{
++    BOOL valid = FALSE;
++    LPPIPEOBJ p = (LPPIPEOBJ) pipeobjs;
++
++    RtlEnterCriticalSection(&csPipeObjs);
++    while (p)
++    {
++        if (p == handle)
++        {
++            valid = TRUE;
++            break;
++        }
++
++        p = p->next;
++    }
++    RtlLeaveCriticalSection(&csPipeObjs);
++
++    TRACE("%p valid=%d\n", handle, valid);
++
++    return valid;
++}
++
++
++
++/******************************************************************************
++ *  close_pipe_object
++ */
++NTSTATUS close_pipe_object(HANDLE handle, BOOL freemem)
++{
++    NTSTATUS ret = STATUS_SUCCESS;
++
++    TRACE("%p\n", handle);
++
++    if (is_valid_pipe_object(handle) &&
++        (is_pipe_event(handle) ||
++        is_pipe_semaphore(handle) ||
++        is_pipe_mutex(handle)))
++
++    {
++        LPPIPEOBJ pobj = (LPPIPEOBJ) handle;
++
++        close(pobj->fd[0]);
++        close(pobj->fd[1]);
++        pobj->wMagic = 0;
++
++        RtlEnterCriticalSection(&csPipeObjs);
++        if (pobj->next)
++            pobj->next->prev = pobj->prev;
++        if (pobj->prev)
++            pobj->prev->next = pobj->next;
++        if (pipeobjs == pobj)
++            pipeobjs = pobj->next;
++        pipe_count--;
++        RtlLeaveCriticalSection(&csPipeObjs);
++
++        if (freemem)
++            RtlFreeHeap(GetProcessHeap(), 0, pobj);
++    }
++    else
++        ret = STATUS_INVALID_HANDLE;
++
++    return ret;
++}
++
++
++/******************************************************************************
++ *  wait_for_pipe_object
++ */
++static NTSTATUS wait_for_pipe_object(LPPIPEOBJ pobj, const LARGE_INTEGER *timeout, int clear)
++{
++     char c;
++     NTSTATUS ret;
++     struct pollfd pfd;
++     int tm;   /* ms */
++     int tmAlready;
++     int readret;
++     struct timeval tv;
++     LONGLONG start; /* usecs */
++
++     pfd.fd = pobj->fd[0];
++     pfd.events = POLLIN;
++     pfd.revents = 0;
++
++     /* Remember that this is initially in get_nt_timeout format 
++(*-10000) */
++     if (!timeout)
++         tm = -1;
++     else
++         tm = (-timeout->QuadPart) / (ULONGLONG)10000;
++
++     TRACE("pobj=%p timeout=%d\n", pobj, tm);
++
++     gettimeofday(&tv, 0);
++     start = (LONGLONG) tv.tv_sec * 1000000LL + (LONGLONG) tv.tv_usec;
++     tmAlready = 0;
++
++     while (1)
++     {
++         if (poll(&pfd, 1, tm - tmAlready) == -1) {
++             ret = WAIT_FAILED;
++         }
++         else if (pfd.revents & POLLIN)
++         {
++             ret = WAIT_OBJECT_0;
++
++             TRACE("Pipe sync object: Signaled before time out\n");
++             if (clear)
++             {
++                 /* Clear the signal */
++                 readret = read(pobj->fd[0], &c, 1);
++                 if (readret == -1 && errno == EAGAIN)
++                 {
++                     TRACE("Pipe sync object: Erroneous read; retrying\n");
++                     if (!timeout)
++                         continue;
++                     else
++                     {
++                         LONGLONG usecs;
++
++                         /* Adjust time elapsed */
++                         gettimeofday(&tv, 0);
++                         usecs = (LONGLONG) tv.tv_sec * 1000000LL 
++                                 + (LONGLONG) tv.tv_usec;
++                         tmAlready = (usecs - start) / 1000;
++                         if (tmAlready < tm)
++                             continue;
++                         else
++                         {
++                             TRACE("Pipe sync object: Timed out\n");
++                             ret = WAIT_TIMEOUT;
++                         }
++                     }
++                 }
++                 else if (readret != 1)
++                 {
++                     ERR("Failed to clear pipe sync object\n");
++                     ret = WAIT_FAILED;
++                 }
++             }
++         }
++         else
++         {
++             ret = WAIT_TIMEOUT;
++             TRACE("Pipe sync object timed out\n");
++         }
++
++         /* always break except when a thread loses the race */
++         /* between poll() and read() */
++         break;
++    }
++
++    return ret;
++}
++
++
++static NTSTATUS create_pipe_object(HANDLE *h, WORD type, int signaled)
++{
++    NTSTATUS ret;
++    LPPIPEOBJ pobj = RtlAllocateHeap(GetProcessHeap(), 0, sizeof(PIPEOBJ));
++
++    ret = init_pipe_object(pobj, type, signaled);
++    if (ret)
++        RtlFreeHeap(GetProcessHeap(), 0, pobj);
++    else
++        *h = (HANDLE)pobj;
++
++    return ret;
++}
++
++NTSTATUS init_pipe_object(LPPIPEOBJ pobj, WORD type, int signaled)
++{
++    NTSTATUS ret = STATUS_SUCCESS;
++
++    pobj->wMagic = type;
++
++    if (pipe(pobj->fd) < 0)
++    {
++        ERR("failed to create pipe object\n");
++        return STATUS_NO_MEMORY;  /* Most likely reached fd limit */
++    }
++
++    fcntl(pobj->fd[0], F_SETFL, O_NONBLOCK);
++    fcntl(pobj->fd[1], F_SETFL, O_NONBLOCK);
++
++    if (signaled)
++    {
++        if (write(pobj->fd[1], "s", 1) != 1)
++        {
++            close_pipe_object(pobj, FALSE);
++            ERR("failed to signal pipe object\n");
++            ret = STATUS_UNSUCCESSFUL;
++        }
++    }
++
++    if (SUCCEEDED(ret))
++    {
++        RtlEnterCriticalSection(&csPipeObjs);
++        pobj->prev = 0;
++        pobj->next = pipeobjs;
++        if (pipeobjs)
++            pipeobjs->prev = pobj;
++        pipeobjs = pobj;
++        pipe_count++;
++        RtlLeaveCriticalSection(&csPipeObjs);
++    }
++
++    TRACE("handle=%p type 0x%04x ret=0x%08d pipe count=%d\n", pobj, type, ret, pipe_count);
++
++    return ret;
++}
++
++
++static NTSTATUS signal_pipe_object(LPPIPEOBJ pobj)
++{
++    LARGE_INTEGER timeout;
++
++    ZeroMemory(&timeout, sizeof(timeout));
++
++    if (wait_for_pipe_object(pobj, &timeout, 0) == WAIT_TIMEOUT)
++    {
++        if (write(pobj->fd[1], "s", 1) != 1)
++        {
++            ERR("Failed to signal pipe object %p\n", pobj);
++            return STATUS_UNSUCCESSFUL;
++        }
++        /* don't starve other same priority threads on same fd  */
++               sched_yield();
++    }
++
++    TRACE("%p signaled\n", pobj);
++
++    return STATUS_SUCCESS;
++}
++
+ /*
+  *	Semaphores
+  */
+@@ -270,17 +554,22 @@ NTSTATUS WINAPI NtCreateSemaphore( OUT P
+ 
+     if ((ret = alloc_object_attributes( attr, &objattr, &len ))) return ret;
+ 
+-    SERVER_START_REQ( create_semaphore )
++    if (!len && MaximumCount == 1 && use_pipe_objects())
+     {
+-        req->access  = access;
+-        req->initial = InitialCount;
+-        req->max     = MaximumCount;
+-        wine_server_add_data( req, objattr, len );
+-        ret = wine_server_call( req );
+-        *SemaphoreHandle = wine_server_ptr_handle( reply->handle );
++        ret = create_pipe_object(SemaphoreHandle, SEMAPHORE_MAGIC, InitialCount);
++    }
++    else {
++        SERVER_START_REQ( create_semaphore )
++        {
++            req->access  = access;
++            req->initial = InitialCount;
++            req->max     = MaximumCount;
++            wine_server_add_data( req, objattr, len );
++            ret = wine_server_call( req );
++            *SemaphoreHandle = wine_server_ptr_handle( reply->handle );
++        }
++        SERVER_END_REQ;
+     }
+-    SERVER_END_REQ;
+-
+     RtlFreeHeap( GetProcessHeap(), 0, objattr );
+     return ret;
+ }
+@@ -360,6 +649,9 @@ NTSTATUS WINAPI NtQuerySemaphore( HANDLE
+ NTSTATUS WINAPI NtReleaseSemaphore( HANDLE handle, ULONG count, PULONG previous )
+ {
+     NTSTATUS ret;
++    
++    if (is_pipe_semaphore(handle))
++        return signal_pipe_object((LPPIPEOBJ)handle);
+ 
+     if (do_fsync())
+         return fsync_release_semaphore( handle, count, previous );
+@@ -403,16 +695,24 @@ NTSTATUS WINAPI NtCreateEvent( PHANDLE E
+ 
+     if ((ret = alloc_object_attributes( attr, &objattr, &len ))) return ret;
+ 
+-    SERVER_START_REQ( create_event )
++    /* Use pipe for anonymous auto-reset event */
++    if (!len && type != NotificationEvent /* !ManualReset, see req below */ && use_pipe_objects())
+     {
+-        req->access = DesiredAccess;
+-        req->manual_reset = (type == NotificationEvent);
+-        req->initial_state = InitialState;
+-        wine_server_add_data( req, objattr, len );
+-        ret = wine_server_call( req );
+-        *EventHandle = wine_server_ptr_handle( reply->handle );
++        ret = create_pipe_object(EventHandle, EVENT_MAGIC, InitialState);
++    }
++    else
++    {
++        SERVER_START_REQ( create_event )
++        {
++            req->access = DesiredAccess;
++            req->manual_reset = (type == NotificationEvent);
++            req->initial_state = InitialState;
++            wine_server_add_data( req, objattr, len );
++            ret = wine_server_call( req );
++            *EventHandle = wine_server_ptr_handle( reply->handle );
++        }
++        SERVER_END_REQ;
+     }
+-    SERVER_END_REQ;
+ 
+     RtlFreeHeap( GetProcessHeap(), 0, objattr );
+     return ret;
+@@ -456,6 +756,9 @@ NTSTATUS WINAPI NtOpenEvent( HANDLE *han
+ NTSTATUS WINAPI NtSetEvent( HANDLE handle, LONG *prev_state )
+ {
+     NTSTATUS ret;
++    
++    if (is_pipe_event(handle))
++        return signal_pipe_object((LPPIPEOBJ)handle);
+ 
+     if (do_fsync())
+         return fsync_set_event( handle, prev_state );
+@@ -602,15 +905,22 @@ NTSTATUS WINAPI NtCreateMutant(OUT HANDL
+ 
+     if ((status = alloc_object_attributes( attr, &objattr, &len ))) return status;
+ 
+-    SERVER_START_REQ( create_mutex )
++    if (!len && use_pipe_objects())
+     {
+-        req->access  = access;
+-        req->owned   = InitialOwner;
+-        wine_server_add_data( req, objattr, len );
+-        status = wine_server_call( req );
+-        *MutantHandle = wine_server_ptr_handle( reply->handle );
++        status = create_pipe_object(MutantHandle, MUTEX_MAGIC, !InitialOwner);
++    }
++    else
++    {
++        SERVER_START_REQ( create_mutex )
++        {
++            req->access  = access;
++            req->owned   = InitialOwner;
++            wine_server_add_data( req, objattr, len );
++            status = wine_server_call( req );
++            *MutantHandle = wine_server_ptr_handle( reply->handle );
++        }
++        SERVER_END_REQ;
+     }
+-    SERVER_END_REQ;
+ 
+     RtlFreeHeap( GetProcessHeap(), 0, objattr );
+     return status;
+@@ -660,6 +970,11 @@ NTSTATUS WINAPI NtReleaseMutant( IN HAND
+     if (do_esync())
+         return esync_release_mutex( handle, prev_count );
+ 
++    TRACE("%p\n", handle);
++
++    if (is_pipe_mutex(handle))
++        return signal_pipe_object((LPPIPEOBJ)handle);
++
+     SERVER_START_REQ( release_mutex )
+     {
+         req->handle = wine_server_obj_handle( handle );
+@@ -1185,7 +1500,22 @@ static NTSTATUS wait_objects( DWORD coun
+ {
+     select_op_t select_op;
+     UINT i, flags = SELECT_INTERRUPTIBLE;
++    int j;
+ 
++    //TRACE("count=%ld handles=%p wait_any=%d alertable=%d timeout=%p %lld\n", count, handles, wait_any, alertable, timeout, timeout ? timeout->QuadPart : -1);
++
++    if (count == 1 && is_pipe_object(handles[0]))
++        return wait_for_pipe_object((LPPIPEOBJ)*handles, timeout, 1);
++    for (j = 0; j < count; ++j) {
++        if (is_pipe_object(handles[j])) {
++            static int s_once = 1;
++            if (s_once) {
++                //ERR("Cannot wait on both pipe objects and multiple objects (only warning!); j=%d, count=%d, handle=%x\n", j, count, handles[j]);
++                s_once = 0;
++            }
++            return STATUS_INVALID_PARAMETER_2;
++        }
++    }
+     if (!count || count > MAXIMUM_WAIT_OBJECTS) return STATUS_INVALID_PARAMETER_1;
+ 
+     if (do_fsync())
+diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+--- a/dlls/ntdll/thread.c	2020-06-14 00:22:49.458572000 -0400
++++ b/dlls/ntdll/thread.c	2020-06-16 17:53:01.989202517 -0400
+@@ -231,6 +242,146 @@ BOOL read_process_time(int unix_pid, int
+     return FALSE;
+ }
+ 
++#if NSPA_RT_THREADS
++
++// Muse Research was using ldt_sction, this won't work anymore. it relies
++// on using explicit priviledged x86 instruction. Now, it would require patched
++// wine(like wine-lol) + a patched glibc with padding in pthread.
++//
++// This code needs to be re-written using shared memory, ala esync/fsync. 
++//
++// if you follow the NSPA_RT_THREADS #ifdefs, you will see that part of the code
++// is managed by ntdll. the other nspa_* thread stuff, used to reside in kernel32,
++// now kernelbase - Muse hooked in to SetThreadPriority() to notify ntdll if a 
++// thread was one of their RT threads, then where i have pthread_set_rt_priority(),
++// they had a function to catch the correct handle/pthread, moving it out of
++// wineserver and closing the handle.
++
++//static RTL_CRITICAL_SECTION ldt_section;
++//static RTL_CRITICAL_SECTION_DEBUG critsect_debug =
++//{
++//    0, 0, &ldt_section,
++//    { &critsect_debug.ProcessLocksList, &critsect_debug.ProcessLocksList },
++//     0, 0, { (DWORD_PTR)(__FILE__ ": ldt_section") }
++//};
++//static RTL_CRITICAL_SECTION ldt_section = { &critsect_debug, -1, 0, 0, 0, 0 };
++//static sigset_t ldt_sigset;
++
++typedef struct _THREADMAP {
++    HANDLE m_handle;
++    pthread_t m_thread;
++    struct _THREADMAP* m_next;
++} THREADMAP, *LPTHREADMAP;
++
++static RTL_CRITICAL_SECTION csThreadMap;
++static RTL_CRITICAL_SECTION_DEBUG csthreadmap_debug =
++{
++    0, 0, &csThreadMap,
++    { &critsect_debug.ProcessLocksList, &csthreadmap_debug.ProcessLocksList },
++      0, 0, { (DWORD_PTR)(__FILE__ ": csThreadMap") }
++};
++static RTL_CRITICAL_SECTION csThreadMap = { &csthreadmap_debug, -1, 0, 0, 0, 0 };
++
++static LPTHREADMAP s_threadMap;
++
++/***********************************************************************
++ *           nspa_add_pthread
++ */
++static void nspa_add_pthread(HANDLE handle, pthread_t thread)
++{
++    LPTHREADMAP pobj;
++    LPTHREADMAP newobj;
++
++    if (handle == GetCurrentThread()) {
++        ERR("failed - current thread unsupported");
++        return;
++    }
++
++    // allocate outside of the CS
++    newobj = RtlAllocateHeap(GetProcessHeap(), 0, sizeof(PIPEOBJ));
++
++    RtlEnterCriticalSection(&csThreadMap);
++
++    // replace TID if it's already in the list
++    for (pobj = s_threadMap; pobj; pobj = pobj->m_next) {
++        if (pobj->m_handle == handle) {
++            pobj->m_thread = thread;
++            break;
++        }
++    }
++
++    // add a new entry at the beginning
++    if (!pobj) {
++        newobj->m_handle = handle;
++        newobj->m_thread = thread;
++        newobj->m_next = s_threadMap;
++        s_threadMap = newobj;
++    }
++
++    RtlLeaveCriticalSection(&csThreadMap);
++
++    // clean up outside of CS
++    if (pobj)
++        RtlFreeHeap(GetProcessHeap(), 0, newobj);
++}
++
++/***********************************************************************
++ *           nspa_remove_pthread
++ */
++void nspa_remove_pthread(pthread_t thread)
++{
++    LPTHREADMAP prev;
++    LPTHREADMAP pobj;
++
++    RtlEnterCriticalSection(&csThreadMap);
++    prev = 0;
++    for (pobj = s_threadMap; pobj; pobj = pobj->m_next) {
++        if (pthread_equal(pobj->m_thread, thread)) {
++            if (prev)
++                prev->m_next = pobj->m_next;
++            else
++                s_threadMap = pobj->m_next;
++            break;
++        }
++        prev = pobj;
++    }
++    RtlLeaveCriticalSection(&csThreadMap);
++
++    if (pobj)
++        RtlFreeHeap(GetProcessHeap(), 0, pobj);
++    /*** else ***/
++    /*** ERR("Thread not found %x\n", (int)thread); ***/
++}
++
++/***********************************************************************
++ *           nspa_handle_to_pthread
++ */
++pthread_t nspa_handle_to_pthread(HANDLE hthread)
++{
++    pthread_t thread;
++    LPTHREADMAP pobj;
++
++    // shortcut for psuedo-handle
++    if (hthread == GetCurrentThread())
++        return pthread_self();
++
++    // note: intentionally not using csThreadMap here since this will
++    // be called from realtime and doesn't want to wait on user threads. 
++    // Should be safe because of how entries are carefully added to and 
++    // removed from the list
++    thread = -1;
++    for (pobj = s_threadMap; pobj; pobj = pobj->m_next) {
++        if (pobj->m_handle == hthread) {
++            thread = pobj->m_thread;
++            break;
++        }
++    }
++    return((int)thread);
++}
++#endif // NSPA_RT_THREADS
++
++
++
+ 
+ /***********************************************************************
+  *		__wine_dbg_get_channel_flags  (NTDLL.@)
+@@ -510,6 +661,10 @@ BOOL read_process_memory_stats(int unix_
+  */
+ void abort_thread( int status )
+ {
++#if NSPA_RT_THREADS
++    nspa_remove_pthread(pthread_self());
++#endif
++
+     pthread_sigmask( SIG_BLOCK, &server_block_set, NULL );
+     if (InterlockedDecrement( &nb_threads ) <= 0) _exit( get_unix_exit_code( status ));
+     signal_exit_thread( status );
+@@ -539,6 +694,10 @@ void WINAPI RtlExitUserThread( ULONG sta
+     sigset_t sigset;
+     TEB *teb;
+ 
++#if NSPA_RT_THREADS
++    nspa_remove_pthread(pthread_self());
++#endif
++
+     if (status)  /* send the exit code to the server (0 is already the default) */
+     {
+         SERVER_START_REQ( terminate_thread )
+@@ -761,7 +923,9 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+     thread_data->esync_queue_fd = -1;
+     thread_data->esync_apc_fd = -1;
+     thread_data->fsync_apc_idx = 0;
+-
++#ifdef NSPA_RT_THREADS
++    thread_data->pthread_id  =  0;
++#endif
+     pthread_attr_init( &pthread_attr );
+     pthread_attr_setstack( &pthread_attr, teb->DeallocationStack,
+                          (char *)teb->Tib.StackBase + extra_stack - (char *)teb->DeallocationStack );
+diff -pur a/include/winternl.h b/include/winternl.h
+--- a/include/winternl.h	2020-06-14 00:22:41.929100000 -0400
++++ b/include/winternl.h	2020-06-11 01:49:54.983278000 -0400
+@@ -25,6 +25,10 @@
+ #include <windef.h>
+ #include <apiset.h>
+ 
++#ifdef HAVE_SCHED_H
++    #define NSPA_RT 1
++#endif
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif /* defined(__cplusplus) */
+@@ -3370,6 +3374,11 @@ typedef struct
+ 
+ #endif /* __WINESRC__ */
+ 
++#ifdef NSPA_RT
++    // see ntdll/thread.c
++    extern INT nspa_handle_to_tid(HANDLE hthread);
++#endif
++
+ #ifdef __cplusplus
+ } /* extern "C" */
+ #endif /* defined(__cplusplus) */

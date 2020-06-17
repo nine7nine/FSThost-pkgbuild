@@ -1,0 +1,111 @@
+Can't find the original commit (wine-patches is annoying AF!). doesn't matter, 
+it'll get added to fsync -- and currently, I'm sticking with 5.9 / my branch anyway.
+
+fsync or NtFlushBuffersFile. move the call out of wineserver.
+
+ <johnstonljordan AT gmail.com>
+
+diff -pur a/dlls/ntdll/file.c b/dlls/ntdll/file.c
+--- a/dlls/ntdll/file.c	2020-06-14 00:22:49.442573000 -0400
++++ b/dlls/ntdll/file.c	2020-06-10 22:20:01.962957000 -0400
+@@ -4254,7 +4254,15 @@ NTSTATUS WINAPI NtFlushBuffersFile( HAND
+     if (ret == STATUS_ACCESS_DENIED)
+         ret = server_get_unix_fd( hFile, FILE_APPEND_DATA, &fd, &needs_close, &type, NULL );
+ 
+-    if (!ret && type == FD_TYPE_SERIAL)
++    if (!ret && (type == FD_TYPE_FILE || type == FD_TYPE_DIR))
++    {
++        if (fsync(fd))
++            ret = FILE_GetNtStatus();
++
++        io->u.Status    = ret;
++        io->Information = 0;
++    }
++    else if (!ret && type == FD_TYPE_SERIAL)
+     {
+         ret = COMM_FlushBuffersFile( fd );
+     }
+diff -pur a/dlls/ntdll/tests/file.c b/dlls/ntdll/tests/file.c
+--- a/dlls/ntdll/tests/file.c	2020-06-14 00:22:41.159154000 -0400
++++ b/dlls/ntdll/tests/file.c	2020-06-10 22:20:01.964957000 -0400
+@@ -5025,14 +5025,26 @@ static void test_flush_buffers_file(void
+     status = pNtFlushBuffersFile(hfile, (IO_STATUS_BLOCK *)0xdeadbeaf);
+     ok(status == STATUS_ACCESS_VIOLATION, "expected STATUS_ACCESS_VIOLATION, got %#x.\n", status);
+ 
++    io_status_block.Information = 0xdeadbeef;
++    io_status_block.Status = 0xdeadbeef;
+     status = pNtFlushBuffersFile(hfile, &io_status_block);
+     ok(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %#x.\n", status);
++    ok(io_status_block.Status == STATUS_SUCCESS, "Got unexpected io_status_block.Status %#x.\n",
++            io_status_block.Status);
++    ok(!io_status_block.Information, "Got unexpected io_status_block.Information %#lx.\n",
++            io_status_block.Information);
+ 
+     status = pNtFlushBuffersFile(hfileread, &io_status_block);
+     ok(status == STATUS_ACCESS_DENIED, "expected STATUS_ACCESS_DENIED, got %#x.\n", status);
+ 
++    io_status_block.Information = 0xdeadbeef;
++    io_status_block.Status = 0xdeadbeef;
+     status = pNtFlushBuffersFile(NULL, &io_status_block);
+     ok(status == STATUS_INVALID_HANDLE, "expected STATUS_INVALID_HANDLE, got %#x.\n", status);
++    ok(io_status_block.Status == 0xdeadbeef, "Got unexpected io_status_block.Status %#x.\n",
++            io_status_block.Status);
++    ok(io_status_block.Information == 0xdeadbeef, "Got unexpected io_status_block.Information %#lx.\n",
++            io_status_block.Information);
+ 
+     CloseHandle(hfileread);
+     CloseHandle(hfile);
+@@ -5043,6 +5055,15 @@ static void test_flush_buffers_file(void
+     status = pNtFlushBuffersFile(hfile, &io_status_block);
+     ok(status == STATUS_SUCCESS, "expected STATUS_SUCCESS, got %#x.\n", status);
+ 
++    io_status_block.Information = 0xdeadbeef;
++    io_status_block.Status = 0xdeadbeef;
++    status = pNtFlushBuffersFile((HANDLE)0xdeadbeef, &io_status_block);
++    ok(status == STATUS_INVALID_HANDLE, "expected STATUS_INVALID_HANDLE, got %#x.\n", status);
++    ok(io_status_block.Status == 0xdeadbeef, "Got unexpected io_status_block.Status %#x.\n",
++            io_status_block.Status);
++    ok(io_status_block.Information == 0xdeadbeef, "Got unexpected io_status_block.Information %#lx.\n",
++            io_status_block.Information);
++
+     CloseHandle(hfile);
+     DeleteFileA(buffer);
+ }
+diff -pur a/server/file.c b/server/file.c
+--- a/server/file.c	2020-06-14 00:22:49.396577000 -0400
++++ b/server/file.c	2020-06-10 22:20:01.964957000 -0400
+@@ -85,7 +85,6 @@ static struct list *file_get_kernel_obj_
+ static void file_destroy( struct object *obj );
+ 
+ static int file_get_poll_events( struct fd *fd );
+-static int file_flush( struct fd *fd, struct async *async );
+ static enum server_fd_type file_get_fd_type( struct fd *fd );
+ 
+ static const struct object_ops file_ops =
+@@ -121,7 +120,7 @@ static const struct fd_ops file_fd_ops =
+     file_get_fd_type,             /* get_fd_type */
+     no_fd_read,                   /* read */
+     no_fd_write,                  /* write */
+-    file_flush,                   /* flush */
++    no_fd_flush,                  /* flush */
+     default_fd_get_file_info,     /* get_file_info */
+     no_fd_get_volume_info,        /* get_volume_info */
+     default_fd_ioctl,             /* ioctl */
+@@ -473,17 +472,6 @@ static int file_get_poll_events( struct
+     return events;
+ }
+ 
+-static int file_flush( struct fd *fd, struct async *async )
+-{
+-    int unix_fd = get_unix_fd( fd );
+-    if (unix_fd != -1 && fsync( unix_fd ) == -1)
+-    {
+-        file_set_error();
+-        return 0;
+-    }
+-    return 1;
+-}
+-
+ static enum server_fd_type file_get_fd_type( struct fd *fd )
+ {
+     struct file *file = get_fd_user( fd );

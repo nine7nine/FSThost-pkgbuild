@@ -1,0 +1,125 @@
+From 22febac9c67150769a389cb97dbf904033f9046f Mon Sep 17 00:00:00 2001
+From: Zebediah Figura <zfigura@codeweavers.com>
+Date: Wed, 7 Aug 2019 17:07:15 -0500
+Subject: [PATCH] ntdll: Store the fsync APC futex in the thread data directly.
+
+Essentially so we can take get_shm() out of any critical paths.
+---
+ dlls/ntdll/fsync.c      | 26 +++++++++++++++-----------
+ dlls/ntdll/ntdll_misc.h |  2 +-
+ dlls/ntdll/thread.c     |  4 ++--
+ 3 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/dlls/ntdll/fsync.c b/dlls/ntdll/fsync.c
+index dbc852987ba..5ae7a2d2e22 100644
+--- a/dlls/ntdll/fsync.c
++++ b/dlls/ntdll/fsync.c
+@@ -658,15 +658,15 @@ static NTSTATUS do_single_wait( int *addr, int val, ULONGLONG *end, BOOLEAN aler
+ 
+     if (alertable)
+     {
+-        struct event *apc_event = get_shm( ntdll_get_thread_data()->fsync_apc_idx );
++        int *apc_futex = ntdll_get_thread_data()->fsync_apc_futex;
+         struct futex_wait_block futexes[2];
+ 
+-        if (__atomic_load_n( &apc_event->signaled, __ATOMIC_SEQ_CST ))
++        if (__atomic_load_n( apc_futex, __ATOMIC_SEQ_CST ))
+             return STATUS_USER_APC;
+ 
+         futexes[0].addr = addr;
+         futexes[0].val = val;
+-        futexes[1].addr = &apc_event->signaled;
++        futexes[1].addr = apc_futex;
+         futexes[1].val = 0;
+ #if __SIZEOF_POINTER__ == 4
+         futexes[0].pad = futexes[1].pad = 0;
+@@ -684,7 +684,7 @@ static NTSTATUS do_single_wait( int *addr, int val, ULONGLONG *end, BOOLEAN aler
+         else
+             ret = futex_wait_multiple( futexes, 2, NULL );
+ 
+-        if (__atomic_load_n( &apc_event->signaled, __ATOMIC_SEQ_CST ))
++        if (__atomic_load_n( apc_futex, __ATOMIC_SEQ_CST ))
+             return STATUS_USER_APC;
+     }
+     else
+@@ -726,14 +726,21 @@ static NTSTATUS __fsync_wait_objects( DWORD count, const HANDLE *handles,
+     int i, ret;
+ 
+     /* Grab the APC futex if we don't already have it. */
+-    if (alertable && !ntdll_get_thread_data()->fsync_apc_idx)
++    if (alertable && !ntdll_get_thread_data()->fsync_apc_futex)
+     {
++        unsigned int idx = 0;
+         SERVER_START_REQ( get_fsync_apc_idx )
+         {
+             if (!(ret = wine_server_call( req )))
+-                ntdll_get_thread_data()->fsync_apc_idx = reply->shm_idx;
++                idx = reply->shm_idx;
+         }
+         SERVER_END_REQ;
++
++        if (idx)
++        {
++            struct event *apc_event = get_shm( idx );
++            ntdll_get_thread_data()->fsync_apc_futex = &apc_event->signaled;
++        }
+     }
+ 
+     NtQuerySystemTime( &now );
+@@ -797,9 +804,7 @@ static NTSTATUS __fsync_wait_objects( DWORD count, const HANDLE *handles,
+             {
+                 /* We must check this first! The server may set an event that
+                  * we're waiting on, but we need to return STATUS_USER_APC. */
+-                struct event *event = get_shm( ntdll_get_thread_data()->fsync_apc_idx );
+-                TRACE("...%d\n", __atomic_load_n( &event->signaled, __ATOMIC_SEQ_CST ));
+-                if (__atomic_load_n( &event->signaled, __ATOMIC_SEQ_CST ))
++                if (__atomic_load_n( ntdll_get_thread_data()->fsync_apc_futex, __ATOMIC_SEQ_CST ))
+                     goto userapc;
+             }
+ 
+@@ -911,9 +916,8 @@ static NTSTATUS __fsync_wait_objects( DWORD count, const HANDLE *handles,
+ 
+             if (alertable)
+             {
+-                struct event *event = get_shm( ntdll_get_thread_data()->fsync_apc_idx );
+                 /* We already checked if it was signaled; don't bother doing it again. */
+-                futexes[i].addr = &event->signaled;
++                futexes[i].addr = ntdll_get_thread_data()->fsync_apc_futex;
+                 futexes[i].val = 0;
+ #if __SIZEOF_POINTER__ == 4
+                 futexes[i].pad = 0;
+diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+index 0b6a624d2c9..bf5aa20d38d 100644
+--- a/dlls/ntdll/ntdll_misc.h
++++ b/dlls/ntdll/ntdll_misc.h
+@@ -281,7 +281,7 @@ struct ntdll_thread_data
+     struct debug_info *debug_info;    /* info for debugstr functions */
+     int                esync_queue_fd;/* fd to wait on for driver events */
+     int                esync_apc_fd;  /* fd to wait on for user APCs */
+-    unsigned int       fsync_apc_idx;
++    int               *fsync_apc_futex;
+     void              *start_stack;   /* stack for thread startup */
+     int                request_fd;    /* fd for sending server requests */
+     int                reply_fd;      /* fd for receiving server replies */
+diff --git a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+index c6e86c196bd..f73e141911b 100644
+--- a/dlls/ntdll/thread.c
++++ b/dlls/ntdll/thread.c
+@@ -233,7 +233,7 @@ void thread_init(void)
+     thread_data->wait_fd[1] = -1;
+     thread_data->esync_queue_fd = -1;
+     thread_data->esync_apc_fd = -1;
+-    thread_data->fsync_apc_idx = 0;
++    thread_data->fsync_apc_futex = NULL;
+ 
+     signal_init_thread( teb );
+     virtual_init_threading();
+@@ -531,7 +531,7 @@ NTSTATUS WINAPI RtlCreateUserThread( HANDLE process, SECURITY_DESCRIPTOR *descr,
+     thread_data->start_stack = (char *)teb->Tib.StackBase;
+     thread_data->esync_queue_fd = -1;
+     thread_data->esync_apc_fd = -1;
+-    thread_data->fsync_apc_idx = 0;
++    thread_data->fsync_apc_futex = NULL;
+ 
+     pthread_attr_init( &attr );
+     pthread_attr_setstack( &attr, teb->DeallocationStack,

@@ -1,22 +1,22 @@
 --- wine-1.3.24/include/winternl.h.old	2011-12-09 10:29:58.941289364 -0800
 +++ wine-1.3.24/include/winternl.h	2011-12-09 10:30:46.746164203 -0800
-@@ -22,6 +22,9 @@
- #define __WINE_WINTERNL_H
- 
+@@ -24,6 +24,9 @@
+ #include <ntdef.h>
  #include <windef.h>
+ #include <apiset.h>
 +#ifdef HAVE_SCHED_H
-+    #define L_RT_THREADS 1
++    #define SYNC_RT_THREADS 1
 +#endif
  
  #ifdef __cplusplus
  extern "C" {
-@@ -2675,6 +2678,11 @@
+@@ -2992,6 +2995,11 @@
  
  #endif /* __WINESRC__ */
  
-+#ifdef L_RT_THREADS
++#ifdef SYNC_RT_THREADS
 +    // see ntdll/thread.c
-+    extern INT L_rt_handle_to_tid(HANDLE hthread);
++    extern INT SYNC_Rt_handle_to_tid(HANDLE hthread);
 +#endif
 +
  #ifdef __cplusplus
@@ -28,7 +28,7 @@
  #include "wine/library.h"
  #include "wine/server.h"
  #include "wine/debug.h"
-+#if L_RT_THREADS
++#if SYNC_RT_THREADS
 +    #include <sched.h>
 +    #include <pthread.h>
 +    #include <errno.h>
@@ -38,14 +38,14 @@
  
  WINE_DEFAULT_DEBUG_CHANNEL(thread);
  
-+#if L_RT_THREADS
-+static BOOL L_rt_is_realtime_thread(HANDLE hthread)
++#if SYNC_RT_THREADS
++static BOOL sync_rt_is_realtime_thread(HANDLE hthread)
 +{
 +    pthread_t thread;
 +    int policy;
 +    struct sched_param param;
 +
-+    thread = L_rt_handle_to_pthread(hthread);
++    thread = sync_rt_handle_to_pthread(hthread);
 +    if (thread != -1) {
 +        if (pthread_getschedparam(thread, &policy, &param) != 0) {
 +                ERR("sched_getscheduler '%s'\n", strerror(errno));
@@ -65,7 +65,7 @@
 +    return(FALSE);
 +}
 +
-+static BOOL L_rt_set_realtime_priority(HANDLE hthread, INT priority)
++static BOOL sync_rt_set_realtime_priority(HANDLE hthread, INT priority)
 +{
 +    static int s_rtPrio = -1;    // -1 means - check env
 +    static int s_rtPolicy = -1;  // -1 means - do not set r/t
@@ -74,8 +74,8 @@
 +        return(FALSE);
 +
 +    if (s_rtPrio == -1) {
-+        const char *policyStr = getenv("L_RT_POLICY");
-+        char *prioStr = getenv("L_RT_PRIO");
++        const char *policyStr = getenv("SYNC_RT_POLICY");
++        char *prioStr = getenv("SYNC_RT_PRIO");
 +        BOOL err = FALSE;
 +        // don't check again
 +        s_rtPrio = 0;
@@ -102,7 +102,7 @@
 +        int policy;
 +        struct sched_param param;
 +
-+        thread = L_rt_handle_to_pthread(hthread);
++        thread = sync_rt_handle_to_pthread(hthread);
 +        if (thread != -1) {
 +            if (pthread_getschedparam(thread, &policy, &param) == -1) {
 +                ERR("sched_getparam: '%s'\n", strerror(errno));
@@ -125,7 +125,7 @@
 +    }
 +    return FALSE;
 +}
-+#endif // L_RT_THREADS
++#endif // SYNC_RT_THREADS
  
  /***********************************************************************
   *           CreateThread   (KERNEL32.@)
@@ -144,10 +144,10 @@
      HANDLE hthread) /* [in] Handle to thread */
  {
      THREAD_BASIC_INFORMATION info;
-+#if L_RT_THREADS
++#if SYNC_RT_THREADS
 +    NTSTATUS status;
 +
-+    if (L_rt_is_realtime_thread(hthread))
++    if (sync_rt_is_realtime_thread(hthread))
 +        return(THREAD_PRIORITY_TIME_CRITICAL);
 +    status = NtQueryInformationThread( hthread, ThreadBasicInformation,
 +                                       &info, sizeof(info), NULL );
@@ -162,8 +162,8 @@
      DWORD       prio = priority;
      NTSTATUS    status;
  
-+#if L_RT_THREADS
-+    if (L_rt_set_realtime_priority(hthread, prio))
++#if SYNC_RT_THREADS
++    if (sync_rt_set_realtime_priority(hthread, prio))
 +        return(TRUE);
 +#endif
 +
@@ -186,7 +186,7 @@
 +static RTL_CRITICAL_SECTION ldt_section = { &critsect_debug, -1, 0, 0, 0, 0 };
 +static sigset_t ldt_sigset;
 +
-+#if L_RT_THREADS
++#if SYNC_RT_THREADS
 +typedef struct _THREADMAP {
 +    HANDLE m_handle;
 +    pthread_t m_thread;
@@ -205,9 +205,9 @@
 +static LPTHREADMAP s_threadMap;
 +
 +/***********************************************************************
-+ *           L_rt_add_pthread
++ *           sync_rt_add_pthread
 + */
-+static void L_rt_add_pthread(HANDLE handle, pthread_t thread)
++static void sync_rt_add_pthread(HANDLE handle, pthread_t thread)
 +{
 +    LPTHREADMAP pobj;
 +    LPTHREADMAP newobj;
@@ -246,9 +246,9 @@
 +}
 +
 +/***********************************************************************
-+ *           L_rt_remove_pthread
++ *           sync_rt_remove_pthread
 + */
-+void L_rt_remove_pthread(pthread_t thread)
++void sync_rt_remove_pthread(pthread_t thread)
 +{
 +    LPTHREADMAP prev;
 +    LPTHREADMAP pobj;
@@ -274,9 +274,9 @@
 +}
 +
 +/***********************************************************************
-+ *           L_rt_handle_to_pthread
++ *           sync_rt_handle_to_pthread
 + */
-+pthread_t L_rt_handle_to_pthread(HANDLE hthread)
++pthread_t sync_rt_handle_to_pthread(HANDLE hthread)
 +{
 +    pthread_t thread;
 +    LPTHREADMAP pobj;
@@ -298,7 +298,7 @@
 +    }
 +    return((int)thread);
 +}
-+#endif // L_RT_THREADS
++#endif // SYNC_RT_THREADS
 +
 +
 +
@@ -310,8 +310,8 @@
   */
  void terminate_thread( int status )
  {
-+#if L_RT_THREADS
-+    L_rt_remove_pthread(pthread_self());
++#if SYNC_RT_THREADS
++    sync_rt_remove_pthread(pthread_self());
 +#endif
 +
      pthread_sigmask( SIG_BLOCK, &server_block_set, NULL );
@@ -321,8 +321,8 @@
      static void *prev_teb;
      TEB *teb;
  
-+#if L_RT_THREADS
-+    L_rt_remove_pthread(pthread_self());
++#if SYNC_RT_THREADS
++    sync_rt_remove_pthread(pthread_self());
 +#endif
 +
      if (status)  /* send the exit code to the server (0 is already the default) */
@@ -340,7 +340,7 @@
      if (handle_ptr) *handle_ptr = handle;
      else NtClose( handle );
  
-+#if L_RT_THREADS
++#if SYNC_RT_THREADS
 +    // give pthread_create a chance to call start_thread (pthread_info.entry), 
 +    // which sets gets the tid via pthread_functions.init_current_teb
 +    pthread_t validThreadID = thread_data->pthread_id;
@@ -353,7 +353,7 @@
 +        }
 +    }
 +    if (validThreadID != 0)
-+        L_rt_add_pthread(handle, validThreadID);
++        sync_rt_add_pthread(handle, validThreadID);
 +    else
 +        ERR("no tid for hthread %p\n", handle);
 +#endif
@@ -363,21 +363,21 @@
  error:
 --- wine-1.3.24/dlls/ntdll/ntdll.spec.old	2011-12-09 10:46:16.975164520 -0800
 +++ wine-1.3.24/dlls/ntdll/ntdll.spec	2011-12-12 09:42:44.959426636 -0800
-@@ -1495,3 +1495,6 @@
- @ cdecl wine_nt_to_unix_file_name(ptr ptr long long)
- @ cdecl wine_unix_to_nt_file_name(ptr ptr)
- @ cdecl __wine_init_windows_dir(wstr wstr)
+@@ -1508,3 +1508,6 @@
+ 
+ # User shared data
+ @ cdecl __wine_user_shared_data()
 +
-+# L_RT_THREADS
-+@ cdecl L_rt_handle_to_pthread(ptr)
++# SYNC_RT_THREADS
++@ cdecl sync_rt_handle_to_pthread(ptr)
 --- wine-1.3.24/dlls/ntdll/ntdll_misc.h.old	2011-12-09 10:47:44.873164404 -0800
 +++ wine-1.3.24/dlls/ntdll/ntdll_misc.h	2011-12-12 10:10:56.777643792 -0800
 @@ -171,6 +171,10 @@
  extern NTSTATUS NTDLL_AddCompletion( HANDLE hFile, ULONG_PTR CompletionValue,
                                       NTSTATUS CompletionStatus, ULONG Information ) DECLSPEC_HIDDEN;
  
-+#ifdef L_RT_THREADS
-+    extern void L_rt_remove_thread(pthread_t thread);
++#ifdef SYNC_RT_THREADS
++    extern void sync_rt_remove_thread(pthread_t thread);
 +#endif
 +
  /* code pages */
