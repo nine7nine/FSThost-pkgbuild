@@ -24,10 +24,8 @@ source=(
         pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch
         designware-i2c_IRQF_NO_THREAD.patch
         nvme-silence_irqdisable_suspend_warnings.patch
-        # [fromlist / fixes]
-        Reset-realtek-bluetooth-devices-during-user-suspend.patch
-        x86-rdrand_do_sanity_check_on_boot.patch
         # [CLear Linux]
+        x86-rdrand_do_sanity_check_on_boot.patch
         0108-smpboot-reuse-timer-calibration.patch
         0113-kernel-time-reduce-ntp-wakeups.patch
         0105-ksm-wakeups.patch
@@ -64,7 +62,6 @@ sha256sums=('SKIP'
             '1e5891100e91830f3cd89ddc88b0373d0d617a4aca2ff214aaabc517d08b633d'
             '10fdab4c1deaa6938be3acb992eac686b716ba08e40bff9b838f439494aa49a0'
             'f52f543deeef2534ba44d437820c535ac7235eaa8fd1d37e9da817866f5c81f9'
-            'e6e1ba732cf5b4ecabde2ded5e90d24c02165c19379024665e13036995533fd4'
             '3abe6ced007b908a0755f71804fb760eba781f1120241394bcffe505469f7cbb'
             'e8ec1aa0e67e37b377e5a9d48416ec6e43d90e7121c29ba012096479c66f4880'
             'c2c89d27c260497f2d31ca6dd60821c19cc3f283aaa8903dd19ace78c2011365'
@@ -117,9 +114,6 @@ prepare() {
 
   msg2 "nvme-silence_irqdisable_suspend_warnings.patch..."
   patch -Np1 -i ../"nvme-silence_irqdisable_suspend_warnings.patch"
-
-#  msg2 "Reset-realtek-bluetooth-devices-during-user-suspend.patch..."
-#  patch -Np1 -i ../"Reset-realtek-bluetooth-devices-during-user-suspend.patch"
 
 ##[Clear Linux]
 
