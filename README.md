@@ -25,17 +25,16 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
 
   Enabled With:
  
-  export WINEFSYNC_SPINCOUNT=128
-  export WINESYNC=1 (0 - disables).
+  * WINEFSYNC_SPINCOUNT=128
+  * WINESYNC=1 (0 - disables).
 
 - Initial implmentation of PROCESS_PRIOCLASS_* combined with implementing; 
   PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO.
 
   Example:
   
-  export WINESERVER_RT_PRIO=72
-  export WINE_RT_PRIO=68
-  wine foo
+  * WINESERVER_RT_PRIO=72
+  * WINE_RT_PRIO=68
   
   I'm going to shink it down to just WINE_RT_PRIO soon. There's no need to allow
   the user to decide this.
@@ -47,8 +46,8 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
 
 - I also use these staging settings.
   
-  export STAGING_SHARED_MEMORY=1
-  export STAGING_WRITECOPY=1
+  * STAGING_SHARED_MEMORY=1
+  * STAGING_WRITECOPY=1
 
   Wine-NSPA contains some other stuff, as well.
   
