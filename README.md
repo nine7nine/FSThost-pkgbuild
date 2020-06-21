@@ -29,20 +29,28 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
   * WINESYNC=1 (0 - disables).
 
 - Initial implmentation of PROCESS_PRIOCLASS_* combined with implementing; 
-  PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO.
+  PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO (with some revisions).
 
   Example:
   
-  * WINESERVER_RT_PRIO=72
-  * WINE_RT_PRIO=68
+  * env WINE_RT_PRIO=70 wine foo
   
-  I'm going to shink it down to just WINE_RT_PRIO soon. There's no need to allow
-  the user to decide this.
+  unlike wine-staging - I don't allow setting the wineserver thread independently of the base priority.
+  Another difference; WINE_RT_PRIO is a MAX value and decrements; wineserver=>any apx futex RT threads and finally
+  the realtime process threads (ie: an app's high priority threads).
   
-  note the space of about 4-6 prio between WINE_RT_* and WINSERVER prios. that's important.
-  WINE_RT_PRIO isn't a max - a couple of threads will be (slightly) higher, so will the APC and thus
-  wineserver must be higher still. Regardless, it's intended to keep them close / not much of a 
-  spread within the system. (the above example is perfect, regardless of priority base level.
+  the (proportional) step between the above threads is set within wine, so it always gets it right, regardless
+  of the WINE_RT_PRIO value.
+  
+  NOTE: while this certainly helps apps, ideally -- the legacy set-realtime-without-wineserver.patch needs
+  to be ported / re-implemented using futex-multiple-wait. The arguably most important detail in that patch is
+  how it was not only able to set realtime priorites - but actually move threads completely out of wineserver,
+  meaning they did not wait on user threads. These threads were tagged/hooked in SetThreadPriority() (WinAPI),
+  then caught in ntdll and handled differently. (just look at the functions in the patch's ntdll and kernel32 parts).
+  
+  I'm probably not smart enough to re-implement this, but I'm stubborn -- so we shall see. lol regardless, I am
+  correct that a re-implmenetation of this patch would be killer -- as we could hook these threads, which would
+  get rid of a lot of traffic in wineserver.
 
 - I also use these staging settings.
   
