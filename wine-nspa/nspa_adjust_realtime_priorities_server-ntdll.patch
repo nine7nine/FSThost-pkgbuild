@@ -31,7 +31,7 @@ diff -Pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
  
 -    // use WINESERVER_RT_PRIO for now. change this later. 
 -    if ((apc_priority = get_priority( "WINESERVER_RT_PRIO", min, max + 3 )) != -1)
-+    if ((apc_priority = get_priority( "WINE_RT_PRIO", min, max -8 )) != -1)
++    if ((apc_priority = get_priority( "WINE_RT_PRIO", min, max -1 )) != -1)
      {
          thread_apc_priority = apc_priority;
      }
@@ -165,7 +165,7 @@ diff -Pur a/server/thread.c b/server/thread.c
 +        case THREAD_PRIORITY_BELOW_NORMAL: return 2;
 +        case THREAD_PRIORITY_NORMAL: return 0;
 +        case THREAD_PRIORITY_ABOVE_NORMAL: return -2;
-+        case THREAD_PRIORITY_HIGHEST: return -43;
++        case THREAD_PRIORITY_HIGHEST: return -4;
 +        case THREAD_PRIORITY_TIME_CRITICAL: return -15;
          }
      case PROCESS_PRIOCLASS_ABOVE_NORMAL:
@@ -247,22 +247,22 @@ diff -Pur a/server/thread.c b/server/thread.c
 -        case 5: return -18 + priority + thread_base_priority;
 -        case 6: return -17 + priority + thread_base_priority;  
 -        case THREAD_PRIORITY_TIME_CRITICAL: return -16 + priority + thread_base_priority;
-+        case THREAD_PRIORITY_IDLE: return 0; // set to zero.
-+        case -7: return -14 + priority + thread_base_priority;
-+        case -6: return -22 + priority + thread_base_priority;
-+        case -5: return -20 + priority + thread_base_priority;
-+        case -4: return -18 + priority + thread_base_priority;
-+        case -3: return -16 + priority + thread_base_priority;
-+        case THREAD_PRIORITY_LOWEST: return -14 + priority + thread_base_priority;
-+        case THREAD_PRIORITY_BELOW_NORMAL: return -12 + priority + thread_base_priority;
-+        case THREAD_PRIORITY_NORMAL: return -10 + priority + thread_base_priority;
-+        case THREAD_PRIORITY_ABOVE_NORMAL: return -8 + priority + thread_base_priority;
-+        case THREAD_PRIORITY_HIGHEST: return -6 + priority + thread_base_priority;
-+        case 3: return -12 + priority + thread_base_priority;
-+        case 4: return -10 + priority + thread_base_priority;
-+        case 5: return -8 + priority + thread_base_priority;
-+        case 6: return -6 + priority + thread_base_priority;  
-+        case THREAD_PRIORITY_TIME_CRITICAL: return -18 + priority + thread_base_priority;
++        case THREAD_PRIORITY_IDLE: return +2 + priority + thread_base_priority;
++        case -7: return -30 + priority + thread_base_priority;
++        case -6: return -28 + priority + thread_base_priority;
++        case -5: return -26 + priority + thread_base_priority;
++        case -4: return -24 + priority + thread_base_priority;
++        case -3: return -22 + priority + thread_base_priority;
++        case THREAD_PRIORITY_LOWEST: return -20 + priority + thread_base_priority;
++        case THREAD_PRIORITY_BELOW_NORMAL: return -18 + priority + thread_base_priority;
++        case THREAD_PRIORITY_NORMAL: return -16 + priority + thread_base_priority;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return -14 + priority + thread_base_priority;
++        case THREAD_PRIORITY_HIGHEST: return -12 + priority + thread_base_priority;
++        case 3: return -10 + priority + thread_base_priority;
++        case 4: return -8 + priority + thread_base_priority;
++        case 5: return -6 + priority + thread_base_priority;
++        case 6: return -4 + priority + thread_base_priority;  
++        case THREAD_PRIORITY_TIME_CRITICAL: return -17 + priority + thread_base_priority;
          }
      }
      return 0;
