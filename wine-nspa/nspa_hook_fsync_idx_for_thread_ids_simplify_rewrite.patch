@@ -1,0 +1,255 @@
+ - A bit of a rewrite.
+ 
+ - synchronize all the priorities of wineserver, the kernel-mode APC futex and 
+   any PROCESS_PRIOCLASEE_REALTIME / THREAD_PRIORITY_TIME_CRITICAL threads.
+   
+ - filter out any thread that isn't covered above. (no realtime)
+   
+ - realtime for fsync: Wire up the needed bits to allow set the priorities for 
+   fsync_idx threads, themselves... this is handy for detection. would love to pass this 
+   to ntdll (future plan). Anyway, We want these threads to be high priority. This 
+   is nice - because we can set the threads higher than may be mapped with SetThreadPriority() 
+   in fact -- as these are the fsync related RT threads -- we want them set more like 
+   TIME_CRITICAL, i think. So by hooking fsync_idx' (unix_tid), we can do this now.
+   
+   note: this is why i sync'd everything. it seems to be better, overall.  
+ 
+ - i tried to shink, clean and update comments.
+ 
+ - fixed a warning.
+ 
+ NOTE: I'm eventually going to re-roll this patch with a few bits from the last 
+ patch in the repo - as technically, they should be in here.
+ 
+ johnstonljordan <AT> gmail <DOT> com
+
+diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+--- a/dlls/ntdll/thread.c	2020-06-23 00:08:41.886168000 -0400
++++ b/dlls/ntdll/thread.c	2020-06-22 23:21:39.408347163 -0400
+@@ -86,7 +86,7 @@ int pthread_set_rt_priority (pthread_t p
+     min = sched_get_priority_min( SCHED_FIFO );
+     max = sched_get_priority_max( SCHED_FIFO );
+ 
+-    if ((apc_priority = get_priority( "WINE_RT_PRIO", min, max -1 )) != -1)
++    if ((apc_priority = get_priority( "WINE_RT_PRIO", min, max )) != -1)
+     {
+         thread_apc_priority = apc_priority;
+     }
+diff -pur a/server/scheduler.c b/server/scheduler.c
+--- a/server/scheduler.c	2020-06-23 00:08:41.879168000 -0400
++++ b/server/scheduler.c	2020-06-23 01:13:12.210367650 -0400
+@@ -74,7 +74,7 @@ void init_scheduler( void )
+         return;
+ 
+     /* change the wineserver priority */
+-    if ((priority = get_priority( "WINE_RT_PRIO", min, max)) != -1)
++    if ((priority = get_priority( "WINE_RT_PRIO", min, max )) != -1)
+     {
+         struct sched_param param;
+         memset( &param, 0, sizeof(param) );
+@@ -93,7 +93,7 @@ void init_scheduler( void )
+     }
+ 
+     /* determine base priority which will be used for all threads */
+-    if ((priority = get_priority( "WINE_RT_PRIO", min, max)) != -1)
++    if ((priority = get_priority( "WINE_RT_PRIO", min, max )) != -1)
+     {
+         thread_base_priority = priority;
+ 
+@@ -110,24 +110,29 @@ void set_scheduler_priority( struct thre
+ 
+     if (thread_base_priority == -1) return;
+     if (thread->unix_tid == -1) return;
++    // that's right boy - grab the fsync_idx (unix_tid, duh).
++    if (thread->fsync_idx == -1) return;
+     
+     // NOTE: we have a working implementation of PROCESS_PRIOCLASS_REALTIME mapped
+     // to SCHED_FIFO. That logic is in get_unix_priority() => set_thread_priority()
+     // found in server/thread.c
+     //
++    // NOTE: we can get the thread ids from thread->fsync_idx (and also unix_tid, as usual).
++    //
+     // We only really care about PROCESS_PRIOCLASS_REALTIME. Implementing any other
+     // PROCESS_PRIOCLASS_* to SCHED_FIFO would hurt RT performance badly. (obviously).
+     //
+     // SCHED_OTHER threads can also have their priority + niceness set. (eg: 0, -20).
+     // some threads will be set this way. (again, see server/thread.c)
+     //
+-    // all logic from the STAGING_RT patch is therefore removed.
++    // most logic from the STAGING_RT patch is therefore removed.
+     
++    // 
+     memset( &param, 0, sizeof(param) );
+-    if (thread->priority = PROCESS_PRIOCLASS_REALTIME && THREAD_PRIORITY_TIME_CRITICAL)
++    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME || THREAD_PRIORITY_TIME_CRITICAL))
+     {
+         policy = SCHED_FIFO;
+-        param.sched_priority = thread_base_priority;
++        param.sched_priority = thread_base_priority -1;
+     } 
+     else
+     {
+@@ -139,6 +144,16 @@ void set_scheduler_priority( struct thre
+     {
+         static int once;
+         if (debug_level || !once++)
++            fprintf( stderr, "%04x: failed to change priority to %d/%d\n",
++                     thread->id, policy, param.sched_priority );
++        return;
++    }
++    // we care about the fsync_idx threads, in fact; they are critical (don't mind the pun).
++    if (sched_setscheduler(thread->fsync_idx, policy | SCHED_RESET_ON_FORK, &param) == -1 &&
++        sched_setscheduler(thread->fsync_idx, policy, &param) == -1)
++    {
++        static int once;
++        if (debug_level || !once++)
+             fprintf( stderr, "%04x: failed to change priority to %d/%d\n",
+                      thread->id, policy, param.sched_priority );
+         return;
+diff -pur a/server/thread.c b/server/thread.c
+--- a/server/thread.c	2020-06-23 00:08:41.880168000 -0400
++++ b/server/thread.c	2020-06-23 01:34:35.550640726 -0400
+@@ -799,9 +799,9 @@ static int get_unix_priority( int priori
+     max = sched_get_priority_max( SCHED_FIFO );
+ 
+     // RT priority for threads must be below APC futex and Wineserver.(ref: min, max -4)
+-    if ((base_priority = get_priority( "WINE_RT_PRIO", min, max + 1 )) != -1)
++    if ((base_priority = get_priority( "WINE_RT_PRIO", min, max )) != -1)
+     {
+-        thread_base_priority = base_priority;
++        thread_base_priority = base_priority - 1;
+     }
+            
+     // SCHED_FIFO:
+@@ -867,42 +867,33 @@ static int get_unix_priority( int priori
+         }
+     // PROCESS_PRIOCLASS_REALTIME => SCHED_FIFO:
+     //
+-    // these return values shift  around to map (somewhat analoguous) with SCHED_FIFO + WINE_RT_PRIO value.
+-    // There are steps in the return values, because we are recieving these from the apps - they return
+-    // what they do, then we remap them. note: that the highest few THREAD_PRIORITY_* are more
+-    // closely bounded to THREAD_PRIORITY_TIME_CRITICAL.
++    // We can hook thread->unix_tid and thread->fsync_idx.
++    // 
++    // WINE_RT_PRIO value is a MAX value. we decrement priorities. Typically, the idea
++    // would be to We ignore most threads, only caring abiut the most critical. However,
++    // I am finding it's actually better to get set all of the threads at the same
++    // priority...
+     //
+-    // base priority is set with  env WINE_RT_PRIO=70 wine foo
+-    //
+-    // each case return number is confusing, becuase Windows is confusing and doesn't map 
+-    // very well to linux scheduler priorities. I think everything is correct now, but I'm
+-    // not positive on case: -3 to -7 (??) ... Meaning, should I be adding from _IDLE and
+-    // incrementing up to _LOWEST? -- or how it is now? or some step, just like from 
+-    // _TIME_CRITICAL downward. (which seems to be correct now, fixes _IDLE too).
+-    //
+-    // Decremental RT prios; wineserver => APC futex threads => PROCESS_PRIOCLASS_REALTIME threads.
+-    //
+-    // NOTE: no longer allow messing with wineserver or the apc threads. They want to be where
+-    // they are. I also have a hunch that it's beneficial to enforcing ordering (in terms of preemption).
++    // priorities can be modified, as the comments show (below). ie: replace zero.
++    // if 0 is set, you will get the WINE_RT_PTRIO value.
+     
+     case PROCESS_PRIOCLASS_REALTIME:
+         switch (priority) {
+-        case THREAD_PRIORITY_IDLE: return +2 + priority + thread_base_priority;
+-        case -7: return -30 + priority + thread_base_priority;
+-        case -6: return -28 + priority + thread_base_priority;
+-        case -5: return -26 + priority + thread_base_priority;
+-        case -4: return -24 + priority + thread_base_priority;
+-        case -3: return -22 + priority + thread_base_priority;
+-        case THREAD_PRIORITY_LOWEST: return -20 + priority + thread_base_priority;
+-        case THREAD_PRIORITY_BELOW_NORMAL: return -18 + priority + thread_base_priority;
+-        case THREAD_PRIORITY_NORMAL: return -16 + priority + thread_base_priority;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return -14 + priority + thread_base_priority;
+-        case THREAD_PRIORITY_HIGHEST: return -12 + priority + thread_base_priority;
+-        case 3: return -10 + priority + thread_base_priority;
+-        case 4: return -8 + priority + thread_base_priority;
+-        case 5: return -6 + priority + thread_base_priority;
+-        case 6: return -4 + priority + thread_base_priority;  
+-        case THREAD_PRIORITY_TIME_CRITICAL: return -17 + priority + thread_base_priority;
++        case THREAD_PRIORITY_IDLE: return 0;
++        case -7: return 0;
++        case -5: return 0;
++        case -4: return 0;
++        case -3: return 0;
++        case THREAD_PRIORITY_LOWEST: return 0;
++        case THREAD_PRIORITY_BELOW_NORMAL: return 0;
++        case THREAD_PRIORITY_NORMAL: return 0;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return 0;
++        case THREAD_PRIORITY_HIGHEST: return 0;
++        case 3: return 0; // -4 + thread_base_priority;
++        case 4: return 0; // -3 + thread_base_priority;
++        case 5: return 0; // -2 + thread_base_priority;
++        case 6: return 0; // -1 + thread_base_priority;  
++        case THREAD_PRIORITY_TIME_CRITICAL: return 0; // thread_base_priority;
+         }
+     }
+     return 0;
+@@ -912,7 +903,7 @@ static int get_unix_priority( int priori
+ #define THREAD_PRIORITY_REALTIME_HIGHEST 6
+ #define THREAD_PRIORITY_REALTIME_LOWEST -7
+ 
+-// set thread priority uses get_unix_priority() to get the unix values.
++// set thread priority uses get_unix_priority() to get the unix values.
+ int set_thread_priority( struct thread* thread, int priority )
+ {
+     int max = THREAD_PRIORITY_HIGHEST;
+@@ -933,12 +924,15 @@ int set_thread_priority( struct thread*
+ 
+     thread->priority = priority;
+     if (thread->unix_tid == -1)
++    // catch the fsync_idx (unix_tid)
+     if (thread->fsync_idx == -1)
+             return 0;
+ 
+     // We only care about PROCESS_PRIOCLASS_REALTIME processes/threads.
+     // Set the SCHED_FIFO Priorities mapped from get_unix_priority()
+     //
++    // we only care about RT / critical threads. fsync_idx and unix_tid
++    //
+     // NOTE: for other windows prioclasses, we set the priorities + niceness 
+     // for their corresponding SCHED_OTHER threads.
+ 
+@@ -948,15 +942,22 @@ int set_thread_priority( struct thread*
+         struct sched_param param;
+         if (sched_getparam( thread->unix_tid, &param ) != 0)
+             goto error;
++        if (sched_getparam( thread->fsync_idx, &param ) != 0)
++            goto error;
+ 
+         param.sched_priority = get_unix_priority( thread->process->priority, priority );
+         if (sched_setscheduler( thread->unix_tid, SCHED_FIFO|SCHED_RESET_ON_FORK, &param ) == 0)
+             return 0;
++        if (sched_setscheduler( thread->fsync_idx, SCHED_FIFO|SCHED_RESET_ON_FORK, &param ) == 0)
++            return 0;
+ #endif
+ #ifdef HAVE_DBUS_DBUS_H
+         if (rtkit_set_realtime( thread->unix_pid, thread->unix_tid,
+                                 get_unix_priority( thread->process->priority, priority ) ) == 0)
+             return 0;
++        if (rtkit_set_realtime( thread->fsync_idx, thread->fsync_idx,
++                                get_unix_priority( thread->process->priority, priority ) ) == 0)
++            return 0;
+ #endif
+     }
+     else
+@@ -965,11 +966,17 @@ int set_thread_priority( struct thread*
+         if (setpriority( PRIO_PROCESS, thread->unix_tid,
+                          get_unix_priority( thread->process->priority, priority ) ) == 0)
+             return 0;
++        if (setpriority( PRIO_PROCESS, thread->fsync_idx,
++                         get_unix_priority( thread->process->priority, priority ) ) == 0)
++            return 0;
+ #endif
+ #ifdef HAVE_DBUS_DBUS_H
+         if (rtkit_set_niceness( thread->unix_pid, thread->unix_tid,
+                                 get_unix_priority( thread->process->priority, priority ) ) == 0)
+             return 0;
++        if (rtkit_set_niceness( thread->fsync_idx, thread->fsync_idx,
++                                get_unix_priority( thread->process->priority, priority ) ) == 0)
++            return 0;
+ #endif
+     }
+ 
