@@ -81,7 +81,7 @@ diff -pur a/server/scheduler.c b/server/scheduler.c
 +    // 
      memset( &param, 0, sizeof(param) );
 -    if (thread->priority = PROCESS_PRIOCLASS_REALTIME && THREAD_PRIORITY_TIME_CRITICAL)
-+    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME || THREAD_PRIORITY_TIME_CRITICAL))
++    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME))
      {
          policy = SCHED_FIFO;
 -        param.sched_priority = thread_base_priority;
