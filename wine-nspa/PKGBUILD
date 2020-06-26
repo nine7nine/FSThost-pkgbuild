@@ -7,7 +7,7 @@
 
 pkgname=wine-nspa
 pkgver=5.9
-pkgrel=8
+pkgrel=9
 
 _pkgbasever=${pkgver/rc/-rc}
 
@@ -41,6 +41,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa_adjust_realtime_priorities_server-ntdll.patch
         nspa-muse_pipesync_partial_merge1.patch
         nspa_hook_fsync_idx_for_thread_ids_simplify_rewrite.patch
+        nspa_add_rt_policy_support.patch
         nspa_avoid_collisions.patch        
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
@@ -70,6 +71,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'f8122dab94917cca0928f9a6d25d7b353a34e4dcc4b76258238edd06236ae93671c65709c60c3c6d06bf7b529dd4d33296cd371ec7043c551e008c705902b02d'
             'f95b7aa2f088cf57b719b67a30456b21ce8afb67a52f9a4244bccb103ce73cf7bc1f0568aa5a7d9e457e75d429ca6685ea842372c2710949ecbf5dbff91b8991'
             'd92beacb78a2e02fe0ed76eca8bf878799d94792cdbd5fad83221bd44494b204d09daa1f56f51c65d858284e05e4b950c8a021162a53fbebee05ef33b1e6f9e9'
+            '0e7d0259e146a15c9765cda562ac6563287d808a1bc74a8f0e675c04cb1ddee688dd71e6e9f1540675fc912f70ccce21bb3f40542d929d39e4e8ce0d34746d32'
             'fe780f08d3ab61cfd53f178fb7773f9929fe1be8d83cb92434b363d1f4114a81c1472e7fd37af4af9a5169afd52d55ab5d917c4efbb22360360c58c52de48ded')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
@@ -249,6 +251,9 @@ prepare() {
 
   msg "Applying nspa_hook_fsync_idx_for_thread_ids_simplify_rewrite.patch" 
   patch -s -Np1 -i $srcdir/nspa_hook_fsync_idx_for_thread_ids_simplify_rewrite.patch
+
+#  msg "Applying nspa_add_rt_policy_support.patch"
+#  patch -s -Np1 -i $srcdir/nspa_add_rt_policy_support.patch
 
 #  msg "Applying nspa_avoid_collisions.patch"
 #  patch -s -Np1 -i $srcdir/nspa_avoid_collisions.patch
