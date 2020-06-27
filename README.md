@@ -33,7 +33,7 @@ useful stuff, if/when it happens...
 - Built on Wine-Staging (5.9 is my base, for now)
 - Fsync support aka: hybrid synchronization in Wine. (requires kernel support).
  
-  Enabled With:
+  Enabled With: (wine environment variables)
  
   * WINEFSYNC_SPINCOUNT=128
   * WINESYNC=1 (0 - disables).
@@ -42,7 +42,7 @@ useful stuff, if/when it happens...
   the ROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO or SCHED_RR. This allows far 
   better prioritization of threads. 
 
-  Example: (environment variables)
+  Example: (wine environment variables)
   
   * WINE_RT_POLICY=RR (SCHED_RR) or FF (SCHED_FIFO) 
   * WINE_RT_PRIO=75
@@ -82,14 +82,14 @@ useful stuff, if/when it happens...
   correct that a re-implmenetation of this patch would be killer -- as we could hook these threads, which would
   get rid of a lot of traffic in wineserver...
 
-- I also use these staging settings.
+- I also use these staging settings. (again, wine environment variables)
   
   * STAGING_SHARED_MEMORY=1
   * STAGING_WRITECOPY=1
 
   Wine-NSPA contains some other stuff, as well. 
   
-  I disable the update window, by default. It can be enabled with;
+  I disable the update window, by default. It can be enabled with; (yup, env variables)
   
   * ENABLE_UPDATE_WINDOW=1
   
