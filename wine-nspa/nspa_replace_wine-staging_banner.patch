@@ -1,0 +1,34 @@
+ Change the staging banner to Wine-NSPA. I don't want people reporting to winehq
+ about issues with my builds. So remove that part and point to NSPA github.
+ 
+ johnstonljordan <AT> gmail <DOT> com
+
+--- a/dlls/kernel32/process.c.orig	2020-06-27 19:33:06.827381980 -0400
++++ b/dlls/kernel32/process.c	2020-06-27 19:32:47.151196186 -0400
+@@ -158,11 +158,12 @@ void CDECL __wine_start_process( LPTHREA
+     {
+         if (CreateEventA(0, 0, 0, "__winestaging_warn_event") && GetLastError() != ERROR_ALREADY_EXISTS)
+         {
+-            FIXME_(winediag)("Wine Staging %s is a testing version containing experimental patches.\n", wine_get_version());
+-            FIXME_(winediag)("Please mention your exact version when filing bug reports on winehq.org.\n");
++            FIXME_(winediag)("Wine-NSPA %s is a wine branch intended for Proaudio use.\n", wine_get_version());
++            FIXME_(winediag)("NSPA github; https://github.com/nine7nine/pkgbuilds_nspa.\n");
++            FIXME_(winediag)("do NOT file bug reports on winehq.org, regarding this build.\n");
+         }
+         else
+-            WARN_(winediag)("Wine Staging %s is a testing version containing experimental patches.\n", wine_get_version());
++            WARN_(winediag)("Wine-NSPA %s is a wine branch intended for Proaudio use.\n", wine_get_version());
+ 
+ 
+         if (!CheckRemoteDebuggerPresent( GetCurrentProcess(), &being_debugged ))
+--- a/libs/wine/Makefile.in.orig	2020-06-27 19:35:44.021755050 -0400
++++ b/libs/wine/Makefile.in	2020-06-27 19:35:31.478652007 -0400
+@@ -100,7 +100,7 @@ libwine_LDFLAGS = $(LIBWINE_LDFLAGS)
+ libwine_DEPS = $(LIBWINE_DEPENDS)
+ 
+ version.c: dummy
+-	version=`(GIT_DIR=$(top_srcdir)/.git git describe HEAD 2>/dev/null || echo "wine-$(PACKAGE_VERSION)") | sed -n -e '$$s/\(.*\)/const char wine_build[] = "\1  (Staging)";/p'` && (echo $$version | cmp -s - $@) || echo $$version >$@ || (rm -f $@ && exit 1)
++	version=`(GIT_DIR=$(top_srcdir)/.git git describe HEAD 2>/dev/null || echo "wine-$(PACKAGE_VERSION)") | sed -n -e '$$s/\(.*\)/const char wine_build[] = "\1  (Wine-NSPA)";/p'` && (echo $$version | cmp -s - $@) || echo $$version >$@ || (rm -f $@ && exit 1)
+ 
+ dummy:
+ .PHONY: dummy
