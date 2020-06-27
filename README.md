@@ -29,18 +29,19 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
   * WINESYNC=1 (0 - disables).
 
 - Initial implmentation of PROCESS_PRIOCLASS_* combined with implementing; 
-  PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO (with some revisions).
+  PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO or SCHED_RR
 
   Example:
   
-  * env WINE_RT_PRIO=70 wine foo
+  * WINE_RT_POLICY=RR (SCHED_RR) or FF (SCHED_FIFO) 
+  * WINE_RT_PRIO=75
+  
+  Both of these must be set. 
   
   unlike wine-staging - I don't allow setting the wineserver thread independently of the base priority.
-  Another difference; WINE_RT_PRIO is a MAX value and decrements; wineserver=>any apx futex RT threads and finally
-  the realtime process threads (ie: an app's high priority threads).
-  
-  the (proportional) step between the above threads is set within wine, so it always gets it right, regardless
-  of the WINE_RT_PRIO value.
+  Another difference; WINE_RT_PRIO is a MAX value and decrements; highest priority are wineserver, any 
+  kernel-mode type APC futex threads and TIME_CRITICAL threads... followed by any PROCESS_REALTIME_CLASS
+  threads that are just below TIME_CRITICAL.
   
   NOTE: while this certainly helps apps, ideally -- the legacy set-realtime-without-wineserver.patch needs
   to be ported / re-implemented using futex-multiple-wait. The arguably most important detail in that patch is
