@@ -7,7 +7,7 @@
 
 pkgname=wine-nspa
 pkgver=5.9
-pkgrel=9
+pkgrel=10
 
 _pkgbasever=${pkgver/rc/-rc}
 
@@ -42,6 +42,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa-muse_pipesync_partial_merge1.patch
         nspa_hook_fsync_idx_for_thread_ids_simplify_rewrite.patch
         nspa_add_rt_policy_support.patch
+        nspa_lite_up-get_unix_priority-allow_more_RT_threads.patch 
         nspa_avoid_collisions.patch        
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
@@ -64,7 +65,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'd0862315daa26c521921931511941bd92e93a8a32368f3f4137a8c879b1d9ef536486be19eb1baf3dbef4c5283caf6e7defae788431b3fb4e579a84a92c9844d'
             '9d17fa1b1958b6ae2e849582404f6b97e84ed7b6e52c83aa2fae349427edbc542aac021d646606b5162935049273afbacb7d9191df5825ce9359e3b8d70db965'
             'b0a2c201545698f4f326f3c0aa685b6b52a424f27e84158557977a7eeb5530f4a633d7691accd506f20a9dcfb4392888791791238fb2df915baf476acf14d497'
-            'e9333a4133c11de73c03b6149d07c05d4fc303019603c8d649a6d65c888c9b036bc27866da547c6ec86e16bf9749e1100899afdbf1f9425b6235693e61003970'
+            'a0a8386786c1271688d1680d1f50882321506547e4c3cebcda984b49cd6d0fd01e8af4a4d7a39a0c25ac51e5759d60acf643ec3f6ea95d7b1019ceac48d640ea'
             'd55744582eba4b5be254b962bc3db6df251dd9df2afe0776502e79f7bf70bf7b1d8bda820adf9a5f9976b96ab224598f8bd45f57f19fd8f7b0a64c845db9667c'
             '8ee46281f37f9f989bb8c105fc6bcbf29dc314d810d790cb42ad48c41958a97b21292156b4667fa28aa9e1c84a03b5898f91ee70fb560ed8b07e03db164b2bf3'
             'd37fb94cf9b143d208e4c4516a6c52634a8c096e51c20cdd6b824a605030b5e81645fc4681868a49091bd8c75a4aa2f7e92dfcd86c22804cdb895cbc6d9cacf7'
@@ -72,6 +73,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'f95b7aa2f088cf57b719b67a30456b21ce8afb67a52f9a4244bccb103ce73cf7bc1f0568aa5a7d9e457e75d429ca6685ea842372c2710949ecbf5dbff91b8991'
             'd92beacb78a2e02fe0ed76eca8bf878799d94792cdbd5fad83221bd44494b204d09daa1f56f51c65d858284e05e4b950c8a021162a53fbebee05ef33b1e6f9e9'
             '0e7d0259e146a15c9765cda562ac6563287d808a1bc74a8f0e675c04cb1ddee688dd71e6e9f1540675fc912f70ccce21bb3f40542d929d39e4e8ce0d34746d32'
+            '8be26f513d1507a57fbf595bd1e270b22fcbd2107a21de9ec2b4a4ee49435c3cd8fce26c61d446e3e5c4414499d0d91e7d9981fc1640334b558ab88f2f74b94e'
             'fe780f08d3ab61cfd53f178fb7773f9929fe1be8d83cb92434b363d1f4114a81c1472e7fd37af4af9a5169afd52d55ab5d917c4efbb22360360c58c52de48ded')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
@@ -252,8 +254,11 @@ prepare() {
   msg "Applying nspa_hook_fsync_idx_for_thread_ids_simplify_rewrite.patch" 
   patch -s -Np1 -i $srcdir/nspa_hook_fsync_idx_for_thread_ids_simplify_rewrite.patch
 
-#  msg "Applying nspa_add_rt_policy_support.patch"
-#  patch -s -Np1 -i $srcdir/nspa_add_rt_policy_support.patch
+  msg "Applying nspa_add_rt_policy_support.patch"
+  patch -s -Np1 -i $srcdir/nspa_add_rt_policy_support.patch
+  
+  msg "Applying nspa_lite_up-get_unix_priority-allow_more_RT_threads.patch"
+  patch -s -Np1 -i $srcdir/nspa_lite_up-get_unix_priority-allow_more_RT_threads.patch
 
 #  msg "Applying nspa_avoid_collisions.patch"
 #  patch -s -Np1 -i $srcdir/nspa_avoid_collisions.patch

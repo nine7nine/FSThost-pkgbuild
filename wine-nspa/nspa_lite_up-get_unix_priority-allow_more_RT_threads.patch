@@ -1,0 +1,52 @@
+ - Uncomment thread->priority = process->priority - needed for the 
+   get_unix_priority() function (to return the priorities).
+   
+ - reduce some high priority threads by WINE_RT_PRIO - 1 -- and by returning 
+   values, we are also allowing them to be high prio (which they want to be). 
+   I've tested both ways, this seems to be best.
+ 
+ Keep the TIME_CRITICAL thread at the same priority as wineserver and the 
+ APC threads. This should avoid any weird issues with prioritization and 
+ synchronization, or any of these threads preempting the most critical threads.
+ 
+ It may seem odd to keep all of these slightly lower priorities @ -1, rather 
+ than spreading them out or trying to better map priorities ~ but in my own
+ tests - It seems better to just keep them as high as possible.
+ 
+ Additionally, I'm using SCHED_RR, which seems to be a better fit for Wine's RT 
+ threading.Jack threads are still SCHED_FIFO (of course), but the assumption 
+ that wine's high priority threads should automatically be SCHED_FIFO, doesn't 
+ seem to make sense to me. SCHED_RR might actually be a better fit.
+ 
+ pretty much every patch I've seen for wine, other than the one in staging
+ ffers the choice between SCHED_RR and FIFO - or they use SCHED_RR straight up..
+ Including the Muse Receptor patch and Codeweavers patches. Windows also uses 
+ something a bit closer to Round-Robin.
+
+diff -pur a/server/thread.c b/server/thread.c
+--- a/server/thread.c	2020-06-26 20:07:12.600773898 -0400
++++ b/server/thread.c	2020-06-26 11:18:50.547031595 -0400
+@@ -492,7 +492,7 @@ struct thread *create_thread( int fd, st
+     thread->desktop = process->desktop;
+     thread->affinity = process->affinity;
+     // return the priority here
+-    // thread->priority = process->priority;
++    thread->priority = process->priority;
+     if (!current) current = thread;
+ 
+     list_add_head( &thread_list, &thread->entry );
+@@ -889,10 +889,10 @@ static int get_unix_priority( int priori
+         case THREAD_PRIORITY_NORMAL: return 0;
+         case THREAD_PRIORITY_ABOVE_NORMAL: return 0;
+         case THREAD_PRIORITY_HIGHEST: return 0;
+-        case 3: return 0; // -4 + thread_base_priority;
+-        case 4: return 0; // -3 + thread_base_priority;
+-        case 5: return 0; // -2 + thread_base_priority;
+-        case 6: return 0; // -1 + thread_base_priority;  
++        case 3: return -1 + thread_base_priority;
++        case 4: return -1 + thread_base_priority;
++        case 5: return -1 + thread_base_priority;
++        case 6: return -1 + thread_base_priority;  
+         case THREAD_PRIORITY_TIME_CRITICAL: return 0; // thread_base_priority;
+         }
+     }

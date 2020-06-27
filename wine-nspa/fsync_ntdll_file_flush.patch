@@ -3,6 +3,8 @@ it'll get added to fsync -- and currently, I'm sticking with 5.9 / my branch any
 
 fsync or NtFlushBuffersFile. move the call out of wineserver.
 
+add fd type char
+
  <johnstonljordan AT gmail.com>
 
 diff -pur a/dlls/ntdll/file.c b/dlls/ntdll/file.c
@@ -13,7 +15,7 @@ diff -pur a/dlls/ntdll/file.c b/dlls/ntdll/file.c
          ret = server_get_unix_fd( hFile, FILE_APPEND_DATA, &fd, &needs_close, &type, NULL );
  
 -    if (!ret && type == FD_TYPE_SERIAL)
-+    if (!ret && (type == FD_TYPE_FILE || type == FD_TYPE_DIR))
++    if (!ret && (type == FD_TYPE_FILE || type == FD_TYPE_DIR || type == FD_TYPE_CHAR))
 +    {
 +        if (fsync(fd))
 +            ret = FILE_GetNtStatus();
