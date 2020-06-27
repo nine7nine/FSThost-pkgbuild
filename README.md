@@ -26,47 +26,48 @@ system for testing changes - rolling can introduce regressions or other issues, 
 
 # Wine-NSPA; wine geared for proaudio. (*WIP*, like alpha)
 
-this patchwork and hacking is all cetnered around improved prouadio / VST support. Because of that, one
-central focus is improving RT/threading support and leveraging fsync to improve synchronization. Other 
-useful stuff, if/when it happens... 
+this patchwork and hacking is all geared towards improving prouadio / VST support. Because of that, one
+central focuses is improving RT/threading support and leveraging fsync to improve synchronization...  
+...and other useful stuff, if/when it happens... 
   
 - Built on Wine-Staging (5.9 is my base, for now)
 - Fsync support aka: hybrid synchronization in Wine. (requires kernel support).
  
-  Enabled With: (wine environment variables)
+Enabled With: (wine environment variables)
  
   * WINEFSYNC_SPINCOUNT=128
   * WINESYNC=1 (0 - disables).
 
 - Initial implmentation of Windows' PROCESS_PRIOCLASS_* (process priority classes) combined with having
-  the ROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO or SCHED_RR. This allows far 
+  the PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO or SCHED_RR. This allows far 
   better prioritization of threads. 
 
-  Example: (wine environment variables)
+Example: (wine environment variables)
   
   * WINE_RT_POLICY=RR (SCHED_RR) or FF (SCHED_FIFO) 
   * WINE_RT_PRIO=75
   
-  Both of these must be set. 
+Both of these must be set. 
   
-  unlike wine-staging - I don't allow setting the wineserver thread, independently. Instead, we want this;
+unlike wine-staging - I don't allow setting the wineserver thread, independently. Instead, we want this;
   
   * #1 wine-nspa's most important/highest priority threads to all be prioritized the exact same. 
   * #2 the applications most critical threads (TIME_CRITICAL) at the same priority as #1, while 
-  * #3 the apps/VSTs other realtime threads are set just below.
+  * #3 the apps/VSTs other slightly lower processes' realtime threads are set just below.
   
-  Another difference; WINE_RT_PRIO is a MAX value and decrements; this may be personal taste, but it's a
-  strong preference. I prefer to set the highest possible priority level for wine -- and I know it's lower
-  RT threads, are just below.
+Another difference; WINE_RT_PRIO is a MAX value and decrements; this may be personal taste, but it's a
+strong preference. I prefer to set the highest possible priority level for wine -- plus, I know it's lower
+RT threads, are just below. 
   
   NOTE: I actually do set WINE_RT_PRIO very high (78) on my machine. just below Jack. for DAWs, you might 
   have to be careful how high you set WINE_RT_PRIO, as you don't want to interfere with your DAW's most
-  important threads (really though, these will probably be Jack audio threads).
+  important threads (really though, these will probably be Jack audio threads)... fyi, htop with t + k options
+  easily shows this stuff.
   
-  Lastly, we allow changing the RT policy, as mentioned. I'm not convinced that SCHED_FIFO is the best fit
-  for wine. I'm currently testing both, so adding the needed bits is appropriate. 
+Lastly, we allow changing the RT policy, as mentioned. I'm not convinced that SCHED_FIFO is the best fit
+for wine. I'm currently testing both, so adding the needed bits is appropriate. 
   
-  we can also handle niceness, but it requires running...
+  oh yeah, we can also handle niceness, but it requires running...
   
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
   
@@ -87,17 +88,17 @@ useful stuff, if/when it happens...
   * STAGING_SHARED_MEMORY=1
   * STAGING_WRITECOPY=1
 
-  Wine-NSPA contains some other stuff, as well. 
+Wine-NSPA contains some other stuff, as well. 
   
-  I disable the update window, by default. It can be enabled with; (yup, env variables)
+I disable the update window, by default. It can be enabled with; (yup, env variables)
   
   * ENABLE_UPDATE_WINDOW=1
   
-  I also disable the crash dialog... In both cases, I just find them annoying and disruptive.
+I also disable the crash dialog... In both cases, I just find them annoying and disruptive.
   
-  the other patches are hacks or workarounds. useful though.
+the other patches are hacks or workarounds. useful though.
     
-  this build should make winelib / bridge and VST people happy. Not sure about the 
+  This build should make winelib / bridge and VST people happy. Not sure about the 
   wine/non-native DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor.
   Unfortunately, non-native DAWs are more complex and the issues are harder to solve.
   
