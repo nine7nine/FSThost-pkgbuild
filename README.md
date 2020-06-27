@@ -18,18 +18,18 @@ kernel support. so the futex-multiple-wait support is available. 5.2.x/5.5 diff 
 
 i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
 
-  Wine-NSPA; wine geared for proaudio. (*WIP*, like pre-alpha).
+  Wine-NSPA; wine geared for proaudio. (*WIP*, like alpha).
   
 - Built on Wine-Staging
-- Fsync support aka: hybrid synchronization in Wine. (reuires kernel support).
+- Fsync support aka: hybrid synchronization in Wine. (requires kernel support).
 
   Enabled With:
  
   * WINEFSYNC_SPINCOUNT=128
   * WINESYNC=1 (0 - disables).
 
-- Initial implmentation of PROCESS_PRIOCLASS_* combined with implementing; 
-  PROCESS_PRIOCLASS_REALTIME thread prorities mapped to SCHED_FIFO or SCHED_RR
+- Initial implmentation of PROCESS_PRIOCLASS_* combined with having the ROCESS_PRIOCLASS_REALTIME thread 
+  prorities mapped to SCHED_FIFO or SCHED_RR.
 
   Example:
   
@@ -42,6 +42,16 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
   Another difference; WINE_RT_PRIO is a MAX value and decrements; highest priority are wineserver, any 
   kernel-mode type APC futex threads and TIME_CRITICAL threads... followed by any PROCESS_REALTIME_CLASS
   threads that are just below TIME_CRITICAL.
+  
+  NOTE: I actually do set WINE_RT_PRIO very high (78) on my machine. just below Jack. for DAWs, you might 
+  have to be careful how high you set WINE_RT_PRIO, as you don't want to interfere with your DAW's most
+  important threads (really though, these will probably be Jack audio threads).
+  
+  we can also handle niceness, but it requires running;
+  
+  * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
+  
+  after installation or updates.
   
   NOTE: while this certainly helps apps, ideally -- the legacy set-realtime-without-wineserver.patch needs
   to be ported / re-implemented using futex-multiple-wait. The arguably most important detail in that patch is
@@ -61,7 +71,7 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
   Wine-NSPA contains some other stuff, as well.
   
   this build should make winelib / bridge and VST people happy. Not sure about the 
-  wine/non-ntaive DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor.
+  wine/non-native DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor.
   Unfortunately, non-native DAWs are more complex and the issues are harder to solve. 
   
   We can't handle wait-on-multiple-objects in wine, due to wineserver 
