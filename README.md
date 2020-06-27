@@ -51,9 +51,9 @@ useful stuff, if/when it happens...
   
   unlike wine-staging - I don't allow setting the wineserver thread, independently. Instead, we want this;
   
-  #1 wine-nspa's most important/highest priority threads to all be prioritized the exact same. 
-  #2 the applications most critical threads (TIME_CRITICAL) at the same priority as #1, while 
-  #3 the apps/VSTs other realtime threads are set just below.
+  * #1 wine-nspa's most important/highest priority threads to all be prioritized the exact same. 
+  * #2 the applications most critical threads (TIME_CRITICAL) at the same priority as #1, while 
+  * #3 the apps/VSTs other realtime threads are set just below.
   
   Another difference; WINE_RT_PRIO is a MAX value and decrements; this may be personal taste, but it's a
   strong preference. I prefer to set the highest possible priority level for wine -- and I know it's lower
