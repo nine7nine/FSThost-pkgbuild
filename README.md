@@ -61,12 +61,13 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates.
   Wine-NSPA contains some other stuff, as well.
   
   this build should make winelib / bridge and VST people happy. Not sure about the 
-  DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor.
-  Unfortunately, DAWs are more complex and the issues are harder to solve. 
+  wine/non-ntaive DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor.
+  Unfortunately, non-native DAWs are more complex and the issues are harder to solve. 
   
   We can't handle wait-on-multiple-objects in wine, due to wineserver 
   being single-threaded and a limitation of hybrid synchronization. It's possible
-  a DAW might run better - it's possible it's perfomrance may be hurt, or there could be
-  threading issues. 
+  a DAW in wine might might run better - it's possible it's perfomrance may be hurt, or there could be
+  threading issues... I'm more interested in improving things for the VST bridge people, and individuals
+  like myself - who are playing live (with many heavy VSTi's at once, often layered).
   
   lots more TODO/WIP.
