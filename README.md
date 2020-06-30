@@ -8,7 +8,7 @@ Nothing magical here, just some patchwork that I use on my Laptop / on Arch. foc
 low-latency, some optimizations and improvements -- but the main reason for it's existence is
 for futex-multiple-wait for wine-nspa. 
 
-- contains futex-multiple-wait patch(actually, 2 versions). needed for wine+fsync.
+- contains futex-multiple-wait patch(actually, 2 versions).
 - some of intel's patchwork. 
 - gcc optimization
 - the percpu-rwsem rewrite (lives in -rt 5.6.x, as well).
@@ -69,7 +69,7 @@ WINE-NSPA's THREAD PRIORITIES & DESIGN:
 Unlike the wine-staging RT patch, I don't allow setting the wineserver thread priority (independently). I'm doing 
 this  for good reason. more on that below... Instead, we want this priority/thread placement;
   
- - WINE_RT_PRIO = Wineserver, Driver/Kernel-mode APC && RT prioclass THREAD_PRIORITY_TIME_CRITCAL threads
+ - WINE_RT_PRIO = Wineserver, Kernel-mode APC && RT prioclass THREAD_PRIORITY_TIME_CRITCAL threads.
  - WINE_RT_PRIO (-1) = any PROCESS_PRIOOCLASS_REALTIME threads, just below _TIME_CRITICAL threads.
  - SCHED_OTHER = everything else
 
