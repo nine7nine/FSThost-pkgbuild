@@ -69,17 +69,18 @@ WINE-NSPA's THREAD PRIORITIES & DESIGN:
 Unlike the wine-staging RT patch, I don't allow setting the wineserver thread priority (independently). I'm doing 
 this  for good reason. more on that below... Instead, we want this priority/thread placement;
   
- - WINE_RT_PRIO = Wineserver, Kernel-mode APC && RT prioclass THREAD_PRIORITY_TIME_CRITCAL threads.
- - WINE_RT_PRIO (-1) = any PROCESS_PRIOOCLASS_REALTIME threads, just below _TIME_CRITICAL threads.
+ - WINE_RT_PRIO/SCHED_FIFO(forced) = Wineserver, Kernel-mode APC && RT prioclass THREAD_PRIORITY_TIME_CRITCAL threads.
+ - WINE_RT_PRIO (- 1 priority) = any PROCESS_PRIOOCLASS_REALTIME threads, just below THREAD_PRIORITY_TIME_CRITICAL threads.
  - SCHED_OTHER = everything else
 
 This ensures that the kernel-mode APC can preempt user APCs. it also ensures that any critical threads in 
-an app will have the same priority as those in Wine-NSPA's core / Wineserver, while also making sure 
-that in both cases; they can preempt the less important RT prioclass threads in apps.
+an app will have the same priority as those in Wine-NSPA's core / Wineserver. -- while also making sure that in both 
+cases; they can preempt the less important RT prioclass threads in apps... Synchronization is another important 
+consideration, here.
 
 Another difference; WINE_RT_PRIO is a MAX value and decrements; this may be personal taste, but it's a
 strong preference. I prefer to set the MAX priority level for wine. Then the less important RT threads are 
-simply the WINE_RT_PRIO - 1.
+simply the WINE_RT_PRIO - 1 priority..
   
   NOTE: I actually do set WINE_RT_PRIO very high (78) on my machine. just below Jack. for DAWs, you might 
   have to be careful how high you set WINE_RT_PRIO, as you don't want to interfere with your DAW's most
@@ -88,9 +89,10 @@ simply the WINE_RT_PRIO - 1.
 ____  
 WINE-NSPA's RT POLICIES & DESIGN:
 
-Wine-NSPA allows setting the RT policy, as shown above (WINE_RT_POLICY). I'm not convinced that 
-SCHED_FIFO is the best fit for wine. In fact, I don't use SCHED_FIFO anymore. I think with so many threads at
-the same/similar high priority and due to Windows scheduler characteristics, SCHED_RR is more appropriate.
+Wine-NSPA allows setting the RT policy, as shown above (WINE_RT_POLICY). For Wine-NSPA's core / most critical threads,
+we force SCHED_FIFO + highest priority. For slightly lower priority realtime threads, we can set RT policy to SCHED_RR 
+or SCHED_FIFO. I think with so many threads at the same/similar high priority and due to Windows scheduler's own 
+behaviour, SCHED_RR is likely more appropriate for some of these proaudio plugin's realtime threads.
 
 Note: Windows' highest priority threads use Round-Robin and therefore have a quantum / timeslice. 
 
@@ -98,15 +100,15 @@ Really, SCHED_RR is designed for running many threads at the same priority. -- W
 expires, the scheduler puts the thread at the tail/end of the runnable list, This allows other RR threads of 
 the same priority to run -- which results in RR threads having more even/equal CPU time... So I'm trying to better 
 emulate the scheduling/thread behaviour of Windows, to some extent. -- while ensuring our RT threads are serviced
-more evenly.
+more evenly. 
 
-I think this is likely important, espcially when running lots of VSTs; as separate processes and/or with big phat 
+I think it's important, espcially when running lots of VSTs; as separate processes and/or with big phat 
 mult-threaded, DSP heavy plugins like Kontakt (which is a plugin i use/do daily, along with many NI plugins). 
 
  - SCHED_RR also has a tunable; /proc/sys/kernel/sched_rr_timeslice_ms
 
 by default, sched_rr_timeslice_ms = 100 (on my 1000hz kernel). I haven't played with the timeslice
-too much, but it's possible there might be some benefit to tuning the timeslice for RR. 
+too much, but it's possible there might be some benefit to tuning the timeslice/quantum.
 
 NOTE: Jack related threads (from a VST) are still SCHED_FIFO. changing the WINE_RT_POLICY, 
 only affects Wine's internal RT threads and our apps/VST's RT threads. -- just in case that isn't obvious.
