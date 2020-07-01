@@ -155,9 +155,14 @@ Finally, here is a full example of how i setup my wine env variables;
  - export STAGING_WRITECOPY=1
  - export WINEFSYNC_SPINCOUNT=128
  - export WINESYNC=1
+ 
+ it's also good practice to disable debugging in wine, unless you are actually debugging;
+ 
+ - export WINEDEBUG=-all
 
-these could be put into .bashrc, or made into a shell script - for launching a specific app, etc. If I
-also happen to be using different wine prefixes;
+these could be put into .bashrc, or made into a shell script - for launching a specific app, etc. 
+
+If I also happen to be using different wine prefixes;
 
  - export WINEPREFIX=/path/to/wineprefix
 ____
