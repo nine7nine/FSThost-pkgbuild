@@ -29,7 +29,7 @@ i also only 'loosely' follow Arch kernel updates. I don't need to chase updates 
 system for testing changes - rolling can introduce regressions or other issues, so I'm sticking with 
 5.6.x for a short-while, while i hack on wine a bit more. but I will update, obviously. (linux 5.8?).
 _____
-# Wine-NSPA; wine geared for proaudio. (*WIP*, like alpha)
+# Wine-NSPA; wine geared for proaudio. (*WIP*/alpha)
 
 this patchwork and hacking is all geared towards improving prouadio / VST support. Because of that, one
 of the central focuses is improving RT/threading support and leveraging fsync to improve synchronization.
@@ -38,12 +38,20 @@ These issues tend to be the biggest problems with running proaudio software in W
 I'm also willing to accept some hacks or workarounds that may allow specifc VSTs to work, as long as
 they don't break things in Wine-NSPA.. and I will implement other useful stuff, if/when it happens.
 (I'm sitting on some patchwork that I haven't added yet, but will eventually).
-
 _____  
 WINE-STAGING: 
 
-Built on Wine-Staging (5.9 is my base, for now)
-_____
+Built on Wine-Staging (5.9 is my base, for now).
+
+I use these staging settings. (wine environment variables)
+  
+  * STAGING_SHARED_MEMORY=1
+  * STAGING_WRITECOPY=1
+  
+The shared memory code indicates that when things get of out synchronization, this feature can cause 
+instability. However, given that synchronization is improved by fsync and additionally made more robust
+by Wine-NSPA's RT support; it makes sense to enable this.
+____
 FSYNC: 
 
 Fsync support aka: hybrid synchronization in Wine. (requires kernel support).
@@ -121,11 +129,6 @@ ____
 ____
 OTHER ENVIRONMMENT VARIABLES / FEATURES:
 
-I also use these staging settings. (again, wine environment variables)
-  
-  * STAGING_SHARED_MEMORY=1
-  * STAGING_WRITECOPY=1
-
 Wine-NSPA contains some other stuff, as well. 
   
 I disable the update window, by default. It can be enabled with; (yup, env variables)
@@ -136,6 +139,14 @@ I also disable the crash dialog... In both cases, I don't like just find them an
 also tends to make things feel more integrated, as you don't get random windows dialogs opening, say, after
 you've updated wine-nspa, then launch a DAW.
 
+i will also be adding an xembed hack to allow resizing support. same goes with adding suuport for allowing 
+32-bit applications to use large address spaces (cross the 4GB RAM boundary). 
+
+i'm also planning to add Dtrace support && looking into the PE tracing code that's floating around for 
+the linux kernel... i have patches for Dtrace for wine. Oracle has the linux support. the PE stuff, i haven't
+delved into yet; but i'm.aware that it exists... some of this stuff is beyond my skill level to fully utilise,
+but it may come in handy, nonetheless.
+____
 Finally, here is a full example of how i setup my wine env variables;
 
  - export WINE_RT_PRIO=78
