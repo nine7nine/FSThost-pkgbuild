@@ -7,7 +7,7 @@
 
 pkgname=wine-nspa
 pkgver=5.9
-pkgrel=12
+pkgrel=13
 
 _pkgbasever=${pkgver/rc/-rc}
 
@@ -36,10 +36,11 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         ntdll-Store_fsync_APC_futex_in_the_thread_data_directly.patch
         fsync_ntdll_file_flush.patch
         nspa-muse_pipesync_partial_merge1.patch
-        nspa_wine-nspa_RT_implementation.patch
+        nspa_ntdll_tweak-hash_short_file_name.patch
         nspa_replace_wine-staging_banner.patch
+        nspa_wine-nspa_RT_implementation.patch
         nspa_wine-nspa-RT-force_fifo_for_selection.patch
-        nspa_ntdll_tweak-hash_short_file_name.patch            
+        nspa_wine-nspa_RT_kill_rtkit_set_realtime_function.patch            
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
             'SKIP'
@@ -63,10 +64,11 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'b0a2c201545698f4f326f3c0aa685b6b52a424f27e84158557977a7eeb5530f4a633d7691accd506f20a9dcfb4392888791791238fb2df915baf476acf14d497'
             'a0a8386786c1271688d1680d1f50882321506547e4c3cebcda984b49cd6d0fd01e8af4a4d7a39a0c25ac51e5759d60acf643ec3f6ea95d7b1019ceac48d640ea'
             'f95b7aa2f088cf57b719b67a30456b21ce8afb67a52f9a4244bccb103ce73cf7bc1f0568aa5a7d9e457e75d429ca6685ea842372c2710949ecbf5dbff91b8991'
-            '19cef42f01b25f196125e22ef4276c746d39af23ce9835f2de2475589434e81c73d50a76c8690ad89865b798545317d695e63e7a05ab017f365ca22ddbce3e74'
+            '0634e5019dd9b89a41d33b7b560aa2724c8f497119737b08876677ef0dd0106bc45252b220b0a30743d76023b1ceedcced4c6fde59ae37864b5613e6c642f423'
             'ffa0f67b5df9383229a5ce01d91c004d978f97579478a07a66b39fc2a5039e587deb3f7029794165d5065f72a32a72d973fa49c2c9e20fb24fd7ed6cb823795e'
+            '19cef42f01b25f196125e22ef4276c746d39af23ce9835f2de2475589434e81c73d50a76c8690ad89865b798545317d695e63e7a05ab017f365ca22ddbce3e74'
             '5e6c89f013dc547115226fdc6fcdb26a038126b91a65422dc86989dfaa16787e5cf6050c28f27a5d821e39b8d109a3b315da9a56143deb3aa3c47ac24f4a17e2'
-            '0634e5019dd9b89a41d33b7b560aa2724c8f497119737b08876677ef0dd0106bc45252b220b0a30743d76023b1ceedcced4c6fde59ae37864b5613e6c642f423')
+            '0c097092334355e3a536b9c450895e529ac6640ea1fb6cddafee14ecfa07042a2d6d9476dfaa3bb170008b171ba3899a263c93af97f8e72d95888e1765edbd32')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
 
@@ -218,11 +220,13 @@ prepare() {
 
   msg "Applying NI-drag-and-drop.patch"
   patch -s -Np1 -i $srcdir/NI-drag-and-drop.patch
-  
-  msg "Applying 0001-wineserver-Draft-to-implement-priority-levels-throug.patch"
-  patch -s -Rp1 -i $srcdir/0001-wineserver-Draft-to-implement-priority-levels-throug.patch
 
-  msg "Applying ntdll-Store_fsync_APC_futex_in_the_thread_data_directly.patch"
+  # NOTE: next two patches get reversed.
+  
+  msg "Reversing 0001-wineserver-Draft-to-implement-priority-levels-throug.patch"
+  patch -s -Rp1 -i $srcdir/0001-wineserver-Draft-to-implement-priority-levels-throug.patch
+  
+  msg "Reversing ntdll-Store_fsync_APC_futex_in_the_thread_data_directly.patch"
   patch -s -Rp1 -i $srcdir/ntdll-Store_fsync_APC_futex_in_the_thread_data_directly.patch
 
   msg "Applying fsync_ntdll_file_flush.patch" 
@@ -242,6 +246,9 @@ prepare() {
 
   msg "Applying nspa_replace_wine-staging_banner.patch"
   patch -s -Np1 -i $srcdir/nspa_replace_wine-staging_banner.patch
+  
+  msg "nspa_wine-nspa_RT_kill_rtkit_set_realtime_function.patch"
+  patch -s -Np1 -i $srcdir/nspa_wine-nspa_RT_kill_rtkit_set_realtime_function.patch
 }
 
 build() {
