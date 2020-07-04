@@ -1,6 +1,7 @@
 # pkgbuilds_nspa
 
-Git Repo for my wine-nspa / linux-nspa flavours for Archlinux
+Git Repo for my wine-nspa / linux-nspa flavours for Archlinux.
+
 _______
  # Linux-NSPA; my custom kernel.
 
@@ -84,7 +85,7 @@ this  for good reason. more on that below... Instead, we want this priority/thre
 This ensures that the kernel-mode APC can preempt user APCs. it also ensures that any critical threads in 
 an app will have the same priority as those in Wine-NSPA's core / Wineserver. -- while also making sure that in both 
 cases; 1). they can preempt the less important RT prioclass threads in apps 2). they won't be preempted. 
-Synchronization is another important consideration, here.
+Synchronization is another very important consideration, here.  
 
 Another difference; WINE_RT_PRIO is a MAX value and decrements; this may be personal taste, but it's a
 strong preference. I prefer to set the MAX priority level for wine. Then the less important RT threads are 
@@ -115,17 +116,31 @@ mult-threaded, DSP heavy plugins like Kontakt (which is a plugin i use/do daily,
 
  - SCHED_RR also has a tunable; /proc/sys/kernel/sched_rr_timeslice_ms
 
-by default, sched_rr_timeslice_ms = 100 (on my 1000hz kernel). I haven't played with the timeslice
-too much, but it's possible there might be some benefit to tuning the timeslice/quantum.
+by default, sched_rr_timeslice_ms = 100 (on my 1000hz kernel). I don't recommend messing around with this, if
+you don't know what you are doing, adjusting the timeslice can easily hurt performance. This works two ways; If 
+you set this value too small/short; you will cause overhead with too much switching between threads. If the value 
+is too large; you will end up delaying other RR threads from having time on the CPU (for each thread!)... At best, 
+you might be able to 'hedge your bets' a bit, slightly reducing the value - somewhere between 50-100.
+
+The application threads in Wine-NSPA that can use RR; don't actually need to be on the CPU non-stop. So having a
+time quantum is a good thing. I've selectively/carfeully chosen the threads that I allow this behaviour with and 
+I believe that it's a good fit for Wine and our RT use-case... These aren't critical threads or synchronization 
+threads (which should be FF), but these absolutely want to be RT threads.  
+
+That all said - I still have preserved the ability to switch them to FF, if desired.
 
 NOTE: Jack related threads (from a VST) are still SCHED_FIFO. changing the WINE_RT_POLICY, 
-only affects Wine's internal RT threads and our apps/VST's RT threads. -- just in case that isn't obvious.
+only affects a subset of Windows' PROCESS_PRIOCLASS_REALTIME threads, whose RT policy I allow to be set. 
 ____
-  oh yeah, we can also handle niceness, but it requires running...
+  IMPORTANT NOTE:
+  
+  you likely will need to run the below command to allow wineserver to set RT and niceness values.
+  
+  Execute the below command;
   
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
   
-  ...after installation or updates.
+  ...after installation and also updates.
 ____
 OTHER ENVIRONMMENT VARIABLES / FEATURES:
 
@@ -190,7 +205,5 @@ SetThreadPriority() (WinAPI), then caught in ntdll and handled differently.
 I'm probably not smart enough to re-implement this, but I'm stubborn -- so we shall see. lol regardless, I think
 that I am correct that a re-implementation of this patch, or some optimization like it; would be killer -- as 
 we could hook these threads, which would get rid of a lot of traffic in wineserver...
-
-Anyway, that's all for now.
 
 *lots more TODO/WIP.
