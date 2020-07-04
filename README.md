@@ -78,9 +78,17 @@ WINE-NSPA's THREAD PRIORITIES & DESIGN:
 Unlike the wine-staging RT patch, I don't allow setting the wineserver thread priority (independently). I'm doing 
 this  for good reason. more on that below... Instead, we want this priority/thread placement;
   
- - MAX PRIORITY/FF = Wineserver, Kernel-mode APC && RT prioclass THREAD_PRIORITY_TIME_CRITCAL threads.
- - HIGH PRIORITY(RR or FF) = any PROCESS_PRIOOCLASS_REALTIME threads, just below THREAD_PRIORITY_TIME_CRITICAL threads.
- - SCHED_OTHER = everything else
+ - MAX PRIORITY = FF
+ 
+   * Wineserver, Kernel-mode APC && RT prioclass THREAD_PRIORITY_TIME_CRITCAL threads.
+   
+ - HIGH PRIORITY = RR or FF (WINE_RT_POLICY) 
+ 
+   * any PROCESS_PRIOOCLASS_REALTIME threads, just below THREAD_PRIORITY_TIME_CRITICAL threads.
+   
+ - NORMAL/TS = SCHED_OTHER (+ niceness, if applicable)
+ 
+   * everything else
 
 This ensures that the kernel-mode APC can preempt user APCs. it also ensures that any critical threads in 
 an app will have the same priority as those in Wine-NSPA's core / Wineserver. -- while also making sure that in both 
