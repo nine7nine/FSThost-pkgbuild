@@ -148,19 +148,21 @@ only affects a subset of Windows' PROCESS_PRIOCLASS_REALTIME threads, whose RT p
 ____
   IMPORTANT NOTE:
   
-  you likely will need to run the below command to allow wineserver to set RT and niceness values.
+  you likely will need to run the below command to allow wineserver and wine's preloader to set RT and niceness 
+  values. This is because both wineserver and ntdll set RT policies/priorities.
   
   Execute the below command;
   
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
-  
-  NOTE: you may also have to do this for;
-  
-  * sudo setcap cap_sys_nice+ep /usr/bin/wine64-preloader
   * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader
   
-  whichever exists on your system. Adjusting the path to where wine-nspa is installed, if not using
-  my arch packages. (or on another distro).
+  On other distros, the wine-preloader may be
+  
+  * sudo setcap cap_sys_nice+ep /usr/bin/wine64-preloader
+  * sudo setcap cap_sys_nice+ep /usr/bin/wine32-preloader
+  
+  whichever preloader exists on your system. Adjusting for the path to where wine-nspa is actually installed - 
+  if not on Archlinux / not using my arch packages.
   
   On my system, I don't need to do any of this, but it may be needed for yours.
   
