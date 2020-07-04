@@ -230,4 +230,20 @@ I'm probably not smart enough to re-implement this, but I'm stubborn -- so we sh
 that I am correct that a re-implementation of this patch, or some optimization like it; would be killer -- as 
 we could hook these threads, which would get rid of a lot of traffic in wineserver...
 
+----
+Sometime in the not-so-distant-future, I will also be releases a tool called "Winebox". It's a set of
+shell scripts for Managing (pseudo) wine-prefixes. However, It goes beyond just managing wine-prefixes. 
+What it actually does is allow having Shared User Data is Wine (across prefixes).
+
+Rather than needing to have multiple prefixes, for different software that may need specific dll overrides
+ro registry settings, etc -- instead, you install all software into a single prefix. Then use Winebox to
+create psuedo wine-prefixes from the actual wine-prefix. This basically means a combination of copying 
+and symlinking, in a clever way -- that makes each psuedo wine-prefixes unique, while also making it 
+impossible to corrupt the real wine-prefix... It also works around "Singleton Apps" and their related
+lock files. (GuitarRig being one example).
+
+I'm in the process of reworking and updating my Winebox scripts, after a few years of having not
+used them. But once I get them sorted out -- I believe other people will find Winebox to be extremely 
+useful. I'll provide a git repo, documentation and links, when it's ready.
+
 *lots more TODO/WIP.
