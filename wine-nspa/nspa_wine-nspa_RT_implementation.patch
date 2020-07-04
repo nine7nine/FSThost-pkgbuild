@@ -1,4 +1,4 @@
- >>>>>>>>  Wine-NSPA Realtime Patch v1 <<<<<<<<<
+ >>>>>>>>  Wine-NSPA Realtime Patch v1.1 <<<<<<<<<
 
  This is the RT patch for Wine-NSPA (fyi, it depends on
  code/features not present in Wine (Upstream) or Wine-Staging, such as fsync... 
@@ -28,6 +28,8 @@
  - Rémi's patch: I needed to change how RT threads were prioritized, as I
  need them much higher priorities, beyond what his patchwork provided and it 
  also needed to be made compatible with bits from the staging RT patch.
+
+ I also removed the rtkit code from the RT path.
  
  - The staging RT patch: needed to be adapted/simplified for wine-nspa. Being as 
  I have unix_get_priority() - scheduler.c doesn't need to figure out what thread
@@ -194,10 +196,10 @@ diff -Npur b/configure.ac a/configure.ac
  AC_CACHE_CHECK([for fallocate],wine_cv_have_fallocate,
                  AC_LINK_IFELSE([AC_LANG_PROGRAM(
  [[#define _GNU_SOURCE
-diff -Npur b/dlls/ntdll/thread.c a/dlls/ntdll/thread.c
---- b/dlls/ntdll/thread.c	2020-06-27 11:15:47.610503000 -0400
-+++ a/dlls/ntdll/thread.c	2020-06-27 11:13:04.633758000 -0400
-@@ -54,6 +54,57 @@ WINE_DEFAULT_DEBUG_CHANNEL(thread);
+diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+--- a/dlls/ntdll/thread.c	2020-07-04 14:33:26.598530000 -0400
++++ b/dlls/ntdll/thread.c	2020-07-04 14:28:36.036434000 -0400
+@@ -54,6 +54,55 @@ WINE_DEFAULT_DEBUG_CHANNEL(thread);
  #define PTHREAD_STACK_MIN 16384
  #endif
  
@@ -206,7 +208,7 @@ diff -Npur b/dlls/ntdll/thread.c a/dlls/ntdll/thread.c
 +#if FSYNC_RT
 +
 +// We set the APC futex threads RT priority from within Ntdll.
-+// below functions setup the SCHED_FIFO or SCHED_RR priority
++// FIFO is hardcoded (regardless of WINE_RT_POLICY)
 +
 +static int thread_apc_priority = -1;
 +
@@ -225,20 +227,18 @@ diff -Npur b/dlls/ntdll/thread.c a/dlls/ntdll/thread.c
 +}
 +
 +static int priority;
-+static int wine_rt_policy = -1;
 +
 +int set_pthreads_realtime (pthread_t pthread_id, int wine_rt_policy, int priority)
 +{
++    // Get RT policy
 +    const char *policyStr = getenv("WINE_RT_POLICY");
 +    int min, max, apc_priority;
 +    min = sched_get_priority_min( SCHED_FIFO );
 +    max = sched_get_priority_max( SCHED_FIFO );
 +
++    // hardcoded to SCHED_FIFO
 +    if (policyStr) {
-+        if (strcmp(policyStr, "RR")==0)
-+            wine_rt_policy = SCHED_RR;
-+        else if (strcmp(policyStr, "FF")==0)
-+            wine_rt_policy = SCHED_FIFO;
++       wine_rt_policy = SCHED_FIFO;
 +    }
 +   
 +    if ((apc_priority = get_priority( "WINE_RT_PRIO", min, max )) != -1)
@@ -255,7 +255,7 @@ diff -Npur b/dlls/ntdll/thread.c a/dlls/ntdll/thread.c
  struct _KUSER_SHARED_DATA *user_shared_data = NULL;
  
  extern void DECLSPEC_NORETURN __wine_syscall_dispatcher( void );
-@@ -735,6 +786,13 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+@@ -735,6 +784,13 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
      pthread_attr_t pthread_attr;
      struct ntdll_thread_data *thread_data;
      struct startup_info *info;
@@ -269,7 +269,7 @@ diff -Npur b/dlls/ntdll/thread.c a/dlls/ntdll/thread.c
      BOOLEAN suspended = !!(flags & THREAD_CREATE_FLAGS_CREATE_SUSPENDED);
      CLIENT_ID *id = NULL;
      HANDLE handle = 0, actctx = 0;
-@@ -894,6 +952,31 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+@@ -894,6 +950,31 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
      if (id) id->UniqueThread = ULongToHandle(tid);
      if (handle_ptr) *handle_ptr = handle;
      else NtClose( handle );
@@ -335,8 +335,10 @@ diff -Npur b/include/config.h.in a/include/config.h.in
  #undef HAVE_SETPROCTITLE
  
 diff -Npur b/server/main.c a/server/main.c
---- b/server/main.c	2020-06-27 11:15:47.600503000 -0400
-+++ a/server/main.c	2020-06-27 11:13:04.624758000 -0400
+
+diff -Npur a/server/main.c b/server/main.c
+--- a/server/main.c	2020-07-04 14:33:26.579530000 -0400
++++ b/server/main.c	2020-07-04 14:28:36.025434000 -0400
 @@ -150,6 +150,7 @@ int main( int argc, char *argv[] )
  
      if (debug_level) fprintf( stderr, "wineserver: starting (pid=%ld)\n", (long) getpid() );
@@ -345,9 +347,9 @@ diff -Npur b/server/main.c a/server/main.c
      init_signals();
      init_directories();
      init_registry();
-diff -Npur b/server/Makefile.in a/server/Makefile.in
---- b/server/Makefile.in	2020-06-27 11:15:47.600503000 -0400
-+++ a/server/Makefile.in	2020-06-27 11:13:04.624758000 -0400
+diff -Npur a/server/Makefile.in b/server/Makefile.in
+--- a/server/Makefile.in	2020-07-04 14:33:26.579530000 -0400
++++ b/server/Makefile.in	2020-07-04 14:28:36.025434000 -0400
 @@ -32,6 +32,7 @@ C_SRCS = \
  	region.c \
  	registry.c \
@@ -363,10 +365,10 @@ diff -Npur b/server/Makefile.in a/server/Makefile.in
 -EXTRALIBS = $(LDEXECFLAGS) $(POLL_LIBS) $(RT_LIBS) $(INOTIFY_LIBS)
 +EXTRAINCL = $(DBUS_CFLAGS)
 +EXTRALIBS = $(LDEXECFLAGS) $(POLL_LIBS) $(RT_LIBS) $(INOTIFY_LIBS) $(DBUS_LIBS)
-diff -Npur b/server/scheduler.c a/server/scheduler.c
---- b/server/scheduler.c	1969-12-31 19:00:00.000000000 -0500
-+++ a/server/scheduler.c	2020-06-27 11:13:04.632758000 -0400
-@@ -0,0 +1,190 @@
+diff -Npur a/server/scheduler.c b/server/scheduler.c
+--- a/server/scheduler.c	1969-12-31 19:00:00.000000000 -0500
++++ b/server/scheduler.c	2020-07-04 14:28:36.028434000 -0400
+@@ -0,0 +1,199 @@
 +/*
 + * Scheduler priority management
 + *
@@ -444,6 +446,7 @@ diff -Npur b/server/scheduler.c a/server/scheduler.c
 +    if (min == -1 || max == -1)
 +        return;
 + 
++    // Set RT policy.
 +    if (policyStr) {
 +        if (strcmp(policyStr, "RR")==0)
 +            wine_rt_policy = SCHED_RR;
@@ -457,6 +460,9 @@ diff -Npur b/server/scheduler.c a/server/scheduler.c
 +        struct sched_param param;
 +        memset( &param, 0, sizeof(param) );
 +        param.sched_priority = priority;
++        // hardcode to SCHED_FIFO for wineserver.
++        wine_rt_policy = SCHED_FIFO;
++        
 +        if (sched_setscheduler( 0, wine_rt_policy | SCHED_RESET_ON_FORK, &param ) == -1 &&
 +            sched_setscheduler( 0, wine_rt_policy, &param ) == -1)
 +        {
@@ -486,6 +492,7 @@ diff -Npur b/server/scheduler.c a/server/scheduler.c
 +    const char *policyStr = getenv("WINE_RT_POLICY");
 +    struct sched_param param;
 +
++    // set the RT policy
 +    if (policyStr) {
 +        if (strcmp(policyStr, "RR")==0)
 +            wine_rt_policy = SCHED_RR;
@@ -495,14 +502,11 @@ diff -Npur b/server/scheduler.c a/server/scheduler.c
 +
 +    if (thread_base_priority == -1) return;
 +    if (thread->unix_tid == -1) return;
-+    // that's right boy - grab the fsync_idx, if it exists (unix_tid, duh).
 +    if (thread->fsync_idx == -1) return;
 +    
 +    // NOTE: we have a working implementation of PROCESS_PRIOCLASS_REALTIME mapped
-+    // to SCHED_FIFO. That logic is in get_unix_priority() => set_thread_priority()
++    // to SCHED_FIFO/RR. That logic is in get_unix_priority() => set_thread_priority()
 +    // found in server/thread.c
-+    //
-+    // NOTE: we can get the thread ids from thread->fsync_idx (and also unix_tid, as usual).
 +    //
 +    // We only really care about PROCESS_PRIOCLASS_REALTIME. that's it! Implementing any other
 +    // PROCESS_PRIOCLASS_* to SCHED_FIFO would hurt RT performance badly. (obviously).
@@ -513,8 +517,15 @@ diff -Npur b/server/scheduler.c a/server/scheduler.c
 +    // simplify the logic from the STAGING_RT patch. realtime or other, that's it!
 +    
 +    memset( &param, 0, sizeof(param) );
-+    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME))
++    // Any RT thread that isn't TIME_CRITICAL is set to lower priority and can use RR/FF RT Policies.
++    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME && thread->priority != THREAD_PRIORITY_TIME_CRITICAL ))
 +    {
++        param.sched_priority = thread_base_priority -1;
++    }
++    // Hardcoded to SCHED_FIFO just for TIME_CRITICAL here.
++    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME && THREAD_PRIORITY_TIME_CRITICAL ))
++    {
++        wine_rt_policy = SCHED_FIFO;
 +        param.sched_priority = thread_base_priority -1;
 +    } 
 +    else
@@ -557,9 +568,9 @@ diff -Npur b/server/scheduler.c a/server/scheduler.c
 +}
 +
 +#endif
-diff -Npur b/server/thread.c a/server/thread.c
---- b/server/thread.c	2020-06-27 11:15:47.601503000 -0400
-+++ a/server/thread.c	2020-06-27 11:13:04.634758000 -0400
+diff -Npur a/server/thread.c b/server/thread.c
+--- a/server/thread.c	2020-07-04 14:33:26.579530000 -0400
++++ b/server/thread.c	2020-07-04 14:28:36.031434000 -0400
 @@ -38,6 +38,12 @@
  #ifdef HAVE_SCHED_H
  #include <sched.h>
@@ -573,7 +584,7 @@ diff -Npur b/server/thread.c a/server/thread.c
  
  #include "ntstatus.h"
  #define WIN32_NO_STATUS
-@@ -54,6 +60,145 @@
+@@ -54,6 +60,93 @@
  #include "esync.h"
  #include "fsync.h"
  
@@ -610,58 +621,6 @@ diff -Npur b/server/thread.c a/server/thread.c
 +        strcmp(err->name, DBUS_ERROR_AUTH_FAILED) == 0)
 +        return EACCES;
 +    return EIO;
-+}
-+
-+static int rtkit_set_realtime( dbus_uint64_t process, dbus_uint64_t thread, dbus_uint32_t priority )
-+{
-+    DBusConnection* dbus = NULL;
-+    DBusMessage *msg = NULL, *rep = NULL;
-+    DBusError err;
-+    int ret = -1;
-+
-+    dbus_error_init(&err);
-+
-+    dbus = dbus_bus_get_private(DBUS_BUS_SYSTEM, &err);
-+    if (dbus_error_is_set(&err))
-+        goto error;
-+
-+    dbus_connection_set_exit_on_disconnect(dbus, 0);
-+
-+    if (!(msg = dbus_message_new_method_call("org.freedesktop.RealtimeKit1",
-+                                            "/org/freedesktop/RealtimeKit1",
-+                                            "org.freedesktop.RealtimeKit1",
-+                                            "MakeThreadRealtimeWithPID")))
-+        goto error;
-+
-+    if (!dbus_message_append_args(msg,
-+                                  DBUS_TYPE_UINT64, &process,
-+                                  DBUS_TYPE_UINT64, &thread,
-+                                  DBUS_TYPE_UINT32, &priority,
-+                                  DBUS_TYPE_INVALID))
-+        goto error;
-+
-+    if (!(rep = dbus_connection_send_with_reply_and_block(dbus, msg, -1, &err)))
-+        goto error;
-+
-+    if (dbus_error_is_set(&err))
-+        goto error;
-+
-+    if (dbus_set_error_from_message(&err, rep))
-+        goto error;
-+
-+    ret = 0;
-+
-+error:
-+    if (ret) errno = dbus_error_to_errno(&err);
-+    if (rep) dbus_message_unref(rep);
-+    if (msg) dbus_message_unref(msg);
-+    if (dbus)
-+    {
-+        dbus_connection_close(dbus);
-+        dbus_connection_unref(dbus);
-+    }
-+    dbus_error_free(&err);
-+    return ret;
 +}
 +
 +static int rtkit_set_niceness( dbus_uint64_t process, dbus_uint64_t thread, dbus_int32_t niceness )
@@ -719,7 +678,7 @@ diff -Npur b/server/thread.c a/server/thread.c
  
  #ifdef __i386__
  static const unsigned int supported_cpus = CPU_FLAG(CPU_x86);
-@@ -346,6 +491,8 @@ struct thread *create_thread( int fd, st
+@@ -346,6 +439,8 @@ struct thread *create_thread( int fd, st
      thread->process = (struct process *)grab_object( process );
      thread->desktop = process->desktop;
      thread->affinity = process->affinity;
@@ -728,7 +687,7 @@ diff -Npur b/server/thread.c a/server/thread.c
      if (!current) current = thread;
  
      list_add_head( &thread_list, &thread->entry );
-@@ -642,18 +789,224 @@ affinity_t get_thread_affinity( struct t
+@@ -642,9 +737,205 @@ affinity_t get_thread_affinity( struct t
      return mask;
  }
  
@@ -832,9 +791,9 @@ diff -Npur b/server/thread.c a/server/thread.c
 +        case THREAD_PRIORITY_NORMAL: return 0;
 +        case THREAD_PRIORITY_ABOVE_NORMAL: return 0;
 +        case THREAD_PRIORITY_HIGHEST: return 0;
-+        case 3: return -1 + thread_base_priority;
-+        case 4: return -1 + thread_base_priority;
-+        case 5: return -1 + thread_base_priority;
++        case 3: return -4 + thread_base_priority;
++        case 4: return -3 + thread_base_priority;
++        case 5: return -2 + thread_base_priority;
 +        case 6: return -1 + thread_base_priority;  
 +        case THREAD_PRIORITY_TIME_CRITICAL: return 0; // thread_base_priority;
 +        }
@@ -851,6 +810,7 @@ diff -Npur b/server/thread.c a/server/thread.c
 +// set thread priority uses get_unix_priority() to get the unix values.
 +int set_thread_priority( struct thread* thread, int priority )
 +{
++    // Get RT policy
 +    const char *policyStr = getenv("WINE_RT_POLICY");
 +    int max = THREAD_PRIORITY_HIGHEST;
 +    int min = THREAD_PRIORITY_LOWEST;
@@ -870,10 +830,11 @@ diff -Npur b/server/thread.c a/server/thread.c
 +
 +    thread->priority = priority;
 +    if (thread->unix_tid == -1)
-+    // catch the fsync_idx (unix_tid)
++    // catch an fsync_idx.
 +    if (thread->fsync_idx == -1)
 +            return 0;
-+            
++    
++    // Set the RT policy      
 +    if (policyStr) {
 +        if (strcmp(policyStr, "RR")==0)
 +            wine_rt_policy = SCHED_RR;
@@ -904,14 +865,6 @@ diff -Npur b/server/thread.c a/server/thread.c
 +        if (sched_setscheduler( thread->fsync_idx, wine_rt_policy|SCHED_RESET_ON_FORK, &param ) == 0)
 +            return 0;
 +#endif
-+#ifdef HAVE_DBUS_DBUS_H
-+        if (rtkit_set_realtime( thread->unix_pid, thread->unix_tid,
-+                                get_unix_priority( thread->process->priority, priority ) ) == 0)
-+            return 0;
-+        if (rtkit_set_realtime( thread->fsync_idx, thread->fsync_idx,
-+                                get_unix_priority( thread->process->priority, priority ) ) == 0)
-+            return 0;
-+#endif
 +    }
 +    else
 +    {
@@ -940,13 +893,8 @@ diff -Npur b/server/thread.c a/server/thread.c
  /* set all information about a thread */
  static void set_thread_info( struct thread *thread,
                               const struct set_thread_info_request *req )
- {
-     if (req->mask & SET_THREAD_INFO_PRIORITY)
+@@ -653,7 +944,7 @@ static void set_thread_info( struct thre
      {
-+    // The below chunk is needed for set_scheduler_priority(). while it won't 
-+    // ultimately set the final priorities, it sets things up for set_thread_priority()
-+    // which will correct priority / match windows much closer. (including for SCHED_OTHER threads).
-+    // We also need this for wineserver RT priority.
          int max = THREAD_PRIORITY_HIGHEST;
          int min = THREAD_PRIORITY_LOWEST;
 -        if (thread->process->priority == PROCESS_PRIOCLASS_REALTIME)
@@ -954,7 +902,7 @@ diff -Npur b/server/thread.c a/server/thread.c
          {
              max = THREAD_PRIORITY_REALTIME_HIGHEST;
              min = THREAD_PRIORITY_REALTIME_LOWEST;
-@@ -661,9 +1014,13 @@ static void set_thread_info( struct thre
+@@ -661,9 +952,13 @@ static void set_thread_info( struct thre
          if ((req->priority >= min && req->priority <= max) ||
              req->priority == THREAD_PRIORITY_IDLE ||
              req->priority == THREAD_PRIORITY_TIME_CRITICAL)
@@ -962,7 +910,7 @@ diff -Npur b/server/thread.c a/server/thread.c
              thread->priority = req->priority;
 -        else
 -            set_error( STATUS_INVALID_PARAMETER );
-+            // set FIFO threads
++            // set RT threads. see: scheduler.c
 +            set_scheduler_priority( thread );
 +        }         
 +        if (set_thread_priority( thread, req->priority ))
@@ -970,7 +918,7 @@ diff -Npur b/server/thread.c a/server/thread.c
      }
      if (req->mask & SET_THREAD_INFO_AFFINITY)
      {
-@@ -1570,6 +1927,7 @@ DECL_HANDLER(init_thread)
+@@ -1570,6 +1865,7 @@ DECL_HANDLER(init_thread)
              process->unix_pid = -1;  /* can happen with linuxthreads */
          init_thread_context( current );
          generate_debug_event( current, CREATE_THREAD_DEBUG_EVENT, &req->entry );
@@ -978,9 +926,9 @@ diff -Npur b/server/thread.c a/server/thread.c
          set_thread_affinity( current, current->affinity );
      }
      debug_level = max( debug_level, req->debug_level );
-diff -Npur b/server/thread.h a/server/thread.h
---- b/server/thread.h	2020-06-27 11:15:47.601503000 -0400
-+++ a/server/thread.h	2020-06-27 11:13:04.625758000 -0400
+diff -Npur a/server/thread.h b/server/thread.h
+--- a/server/thread.h	2020-07-04 14:33:26.579530000 -0400
++++ b/server/thread.h	2020-07-04 14:28:36.026434000 -0400
 @@ -160,4 +160,9 @@ static inline thread_id_t get_thread_id(
  static inline int get_thread_unix_tid( struct thread *thread ) { return thread->unix_tid; }
  static inline timeout_t get_thread_creation_time( struct thread *thread ) { return thread->creation_time; }
