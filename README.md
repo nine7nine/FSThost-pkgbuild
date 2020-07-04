@@ -1,6 +1,12 @@
-# pkgbuilds_nspa
+# Wine-NSPA + Linux-NSPA
 
 Git Repo for my wine-nspa / linux-nspa flavours for Archlinux.
+
+That said, nothing makes this exclusive to Arch. For example, Rolesyuk has kindly
+packaged binaries of Wine-NSPA for Ubuntu + He has binaries for a PREEMPT_RT kernel with
+futex-multiple-wait to support fsync in Wine-NSPA. 
+
+https://github.com/rolesyuk/rt_audio/releases
 
 _______
  # Linux-NSPA; my custom kernel.
@@ -148,7 +154,17 @@ ____
   
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
   
-  ...after installation and also updates.
+  NOTE: you may also have to do this for;
+  
+  * sudo setcap cap_sys_nice+ep /usr/bin/wine64-preloader
+  * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader
+  
+  whichever exists on your system. Adjusting the path to where wine-nspa is installed, if not using
+  my arch packages. (or on another distro).
+  
+  On my system, I don't need to do any of this, but it may be needed for yours.
+  
+  Execute after installation and also updates.
 ____
 OTHER ENVIRONMMENT VARIABLES / FEATURES:
 
