@@ -1,0 +1,22 @@
+ - Add back steps for priorities, just under THREAD_PRIORITY_TIME_CRITICAL.
+ 
+ Now that I've settled on SCHED_RR for these threads, add the stepping back 
+ seems like a good plan - plus, it restores the old wine-RT/FIFO behaviour.
+ 
+ This is also likely better for those running DAWs or multi-hosts in Wine.
+
+--- a/server/thread.c	2020-07-03 17:59:05.653465000 -0400
++++ b/server/thread.c	2020-07-04 14:06:56.481115775 -0400
+@@ -837,9 +837,9 @@ static int get_unix_priority( int priori
+         case THREAD_PRIORITY_NORMAL: return 0;
+         case THREAD_PRIORITY_ABOVE_NORMAL: return 0;
+         case THREAD_PRIORITY_HIGHEST: return 0;
+-        case 3: return -1 + thread_base_priority;
+-        case 4: return -1 + thread_base_priority;
+-        case 5: return -1 + thread_base_priority;
++        case 3: return -4 + thread_base_priority;
++        case 4: return -3 + thread_base_priority;
++        case 5: return -2 + thread_base_priority;
+         case 6: return -1 + thread_base_priority;  
+         case THREAD_PRIORITY_TIME_CRITICAL: return 0; // thread_base_priority;
+         }
