@@ -1,0 +1,16 @@
+ - Fix the wine version string.
+
+ johnstonljordan <AT> gmail <DOT> com
+
+diff -pur a/dlls/ntdll/Makefile.in b/dlls/ntdll/Makefile.in
+--- a/dlls/ntdll/Makefile.in	2020-07-04 15:02:17.526399000 -0400
++++ b/dlls/ntdll/Makefile.in	2020-07-05 19:16:44.436499195 -0400
+@@ -74,7 +74,7 @@ unix_loader_EXTRADEFS = \
+ 	-DBIN_TO_DATADIR=\"`$(MAKEDEP) -R ${bindir} ${datadir}/wine`\"
+ 
+ unix/version.c: dummy
+-	version=`(GIT_DIR=$(top_srcdir)/.git git describe HEAD 2>/dev/null || echo "wine-$(PACKAGE_VERSION)") | sed -n -e '$$s/\(.*\)/const char wine_build[] = "\1 (Staging)";/p'` && (echo $$version | cmp -s - $@) || echo $$version >$@ || (rm -f $@ && exit 1)
++	version=`(GIT_DIR=$(top_srcdir)/.git git describe HEAD 2>/dev/null || echo "wine-$(PACKAGE_VERSION)") | sed -n -e '$$s/\(.*\)/const char wine_build[] = "\1 (NSPA)";/p'` && (echo $$version | cmp -s - $@) || echo $$version >$@ || (rm -f $@ && exit 1)
+ 
+ dummy:
+ .PHONY: dummy

@@ -1,0 +1,120 @@
+ - fix the relative steps for niceness.
+ - fix RT priority decremental steps.
+
+ johnstonljordan <AT> gmail <DOT> com
+
+--- a/server/thread.c.orig	2020-07-05 19:26:39.535816651 -0400
++++ b/server/thread.c	2020-07-05 19:25:47.341033537 -0400
+@@ -759,29 +759,30 @@ static int get_unix_priority( int priori
+     //  
+     // SCHED_OTHER: 
+     //
+-    // We set the thread priority / niceness ( eg: 0, -20 ). the 'thread_base_priority'
+-    // must be subtracted, or it returns bogus values.
++    // We set the thread priority / niceness ( eg: 0, -20 ). 
++    //
++    // normal threads use Relative steps for Niceness.
+     
+     switch (priority_class) {
+     case PROCESS_PRIOCLASS_IDLE:
+         switch (priority) {
+-        case THREAD_PRIORITY_IDLE: return 15 + 5;
+-        case THREAD_PRIORITY_LOWEST: return 10 + 5;
+-        case THREAD_PRIORITY_BELOW_NORMAL: return 8 + 5;
+-        case THREAD_PRIORITY_NORMAL: return 6 + 5;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return 4 + 5;
+-        case THREAD_PRIORITY_HIGHEST: return 2 + 5;
+-        case THREAD_PRIORITY_TIME_CRITICAL: return -15 + 5;
++        case THREAD_PRIORITY_IDLE: return 15;
++        case THREAD_PRIORITY_LOWEST: return 10;
++        case THREAD_PRIORITY_BELOW_NORMAL: return 8;
++        case THREAD_PRIORITY_NORMAL: return 6;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return 4;
++        case THREAD_PRIORITY_HIGHEST: return 2;
++        case THREAD_PRIORITY_TIME_CRITICAL: return -15;
+         }
+     case PROCESS_PRIOCLASS_BELOW_NORMAL:
+         switch (priority) {
+-        case THREAD_PRIORITY_IDLE: return 15 + 4;
+-        case THREAD_PRIORITY_LOWEST: return 8 + 4;
+-        case THREAD_PRIORITY_BELOW_NORMAL: return 6 + 2;
+-        case THREAD_PRIORITY_NORMAL: return 4 + 4;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return 2 + 2;
+-        case THREAD_PRIORITY_HIGHEST: return 0 + 4;
+-        case THREAD_PRIORITY_TIME_CRITICAL: return -15 + 2;
++        case THREAD_PRIORITY_IDLE: return 15;
++        case THREAD_PRIORITY_LOWEST: return 8;
++        case THREAD_PRIORITY_BELOW_NORMAL: return 6;
++        case THREAD_PRIORITY_NORMAL: return 4;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return 2;
++        case THREAD_PRIORITY_HIGHEST: return 0;
++        case THREAD_PRIORITY_TIME_CRITICAL: return -15;
+         }
+     case PROCESS_PRIOCLASS_NORMAL:
+         switch (priority) {
+@@ -795,23 +796,23 @@ static int get_unix_priority( int priori
+         }
+     case PROCESS_PRIOCLASS_ABOVE_NORMAL:
+         switch (priority) {
+-        case THREAD_PRIORITY_IDLE: return 15 - 2;
+-        case THREAD_PRIORITY_LOWEST: return 0 - 2;
+-        case THREAD_PRIORITY_BELOW_NORMAL: return -2 - 2;
+-        case THREAD_PRIORITY_NORMAL: return -4 - 2;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return -6 - 2;
+-        case THREAD_PRIORITY_HIGHEST: return -8 - 2;
+-        case THREAD_PRIORITY_TIME_CRITICAL: return -15 - 2;
++        case THREAD_PRIORITY_IDLE: return 15;
++        case THREAD_PRIORITY_LOWEST: return 0;
++        case THREAD_PRIORITY_BELOW_NORMAL: return -2;
++        case THREAD_PRIORITY_NORMAL: return -4;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return -6 ;
++        case THREAD_PRIORITY_HIGHEST: return -8;
++        case THREAD_PRIORITY_TIME_CRITICAL: return -15;
+         }
+     case PROCESS_PRIOCLASS_HIGH:
+         switch (priority) {
+-        case THREAD_PRIORITY_IDLE: return 15 - 4;
++        case THREAD_PRIORITY_IDLE: return 15;
+         case THREAD_PRIORITY_LOWEST: return -2;
+         case THREAD_PRIORITY_BELOW_NORMAL: return -4;
+-        case THREAD_PRIORITY_NORMAL: return -6 -4;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return -8 - 4;
+-        case THREAD_PRIORITY_HIGHEST: return -10  - 4 ;
+-        case THREAD_PRIORITY_TIME_CRITICAL: return -15 - 4;
++        case THREAD_PRIORITY_NORMAL: return -6;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return -8;
++        case THREAD_PRIORITY_HIGHEST: return -10;
++        case THREAD_PRIORITY_TIME_CRITICAL: return -15;
+         }
+     // PROCESS_PRIOCLASS_REALTIME => SCHED_FIFO:
+     //
+@@ -822,8 +823,7 @@ static int get_unix_priority( int priori
+     // I am finding it's actually better to get set all of the threads at the same
+     // priority...
+     //
+-    // priorities can be modified, as the comments show (below). ie: replace zero.
+-    // if 0 is set, you will get the WINE_RT_PTRIO value.
++    // priorities can be modified, as the comments show (below). 
+     
+     case PROCESS_PRIOCLASS_REALTIME:
+         switch (priority) {
+@@ -835,13 +835,13 @@ static int get_unix_priority( int priori
+         case THREAD_PRIORITY_LOWEST: return 0;
+         case THREAD_PRIORITY_BELOW_NORMAL: return 0;
+         case THREAD_PRIORITY_NORMAL: return 0;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return 0;
+-        case THREAD_PRIORITY_HIGHEST: return 0;
+-        case 3: return -4 + thread_base_priority;
+-        case 4: return -3 + thread_base_priority;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return -4 + thread_base_priority;
++        case THREAD_PRIORITY_HIGHEST: return -3 + thread_base_priority;
++        case 3: return -2 + thread_base_priority;
++        case 4: return -2 + thread_base_priority;
+         case 5: return -2 + thread_base_priority;
+-        case 6: return -1 + thread_base_priority;  
+-        case THREAD_PRIORITY_TIME_CRITICAL: return 0; // thread_base_priority;
++        case 6: return -2 + thread_base_priority;  
++        case THREAD_PRIORITY_TIME_CRITICAL: return thread_base_priority;
+         }
+     }
+     return 0;
