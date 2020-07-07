@@ -102,8 +102,8 @@ cases; 1). they can preempt the less important RT prioclass threads in apps 2). 
 Synchronization is another very important consideration, here.  
 
 Another difference; WINE_RT_PRIO is a MAX value and decrements; this may be personal taste, but it's a
-strong preference. I prefer to set the MAX priority level for wine. Then the less important RT threads are 
-simply the WINE_RT_PRIO - 1 priority..
+strong preference. I prefer to set the MAX priority level for Wine-NSPA. Pin all of those MAX priority threads, then 
+the rest decrement, just below.. 
   
   NOTE: I actually do set WINE_RT_PRIO very high (78) on my machine. just below Jack. for DAWs, you might 
   have to be careful how high you set WINE_RT_PRIO, as you don't want to interfere with your DAW's most
@@ -151,22 +151,26 @@ ____
   you likely will need to run the below command to allow wineserver and wine's preloader to set RT and niceness 
   values. This is because both wineserver and ntdll set RT policies/priorities.
   
-  Execute the below command;
-  
-  * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
-  * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader
-  
-  On other distros, the wine-preloader may be
-  
+  Execute the below commands;
+
   * sudo setcap cap_sys_nice+ep /usr/bin/wine64-preloader
-  * sudo setcap cap_sys_nice+ep /usr/bin/wine32-preloader
+  * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader  
+  * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
+
   
-  whichever preloader exists on your system. Adjusting for the path to where wine-nspa is actually installed - 
-  if not on Archlinux / not using my arch packages.
+  If using Rolesyuk's Ubuntu packages;
   
-  On my system, I don't need to do any of this, but it may be needed for yours.
+  * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine64-preloader
+  * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine-preloader
+  * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wineserver
   
-  Execute after installation and also updates.
+  else;
+  
+  * find it your yourself! you get the idea ;-)
+  
+  On my system, I don't need to do any of this; but it may be needed for yours.
+  
+  Execute after installation and also updates, if needed.
 ____
 OTHER ENVIRONMMENT VARIABLES / FEATURES:
 
