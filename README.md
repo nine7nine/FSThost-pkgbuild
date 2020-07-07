@@ -146,19 +146,16 @@ That all said - I still have preserved the ability to switch them to FF, if desi
 NOTE: Jack related threads (from a VST) are still SCHED_FIFO. changing the WINE_RT_POLICY, 
 only affects a subset of Windows' PROCESS_PRIOCLASS_REALTIME threads, whose RT policy I allow to be set. 
 ____
-  IMPORTANT NOTE:
+  VERY IMPORTANT NOTE:
   
-  you likely will need to run the below command to allow wineserver and wine's preloader to set RT and niceness 
-  values. This is because both wineserver and ntdll set RT policies/priorities.
-  
-  Execute the below commands;
+  If using an older/out-dated build of JACK (anything below v1.9.13), then (unfortunately) you are required to 
+  execute the below commands;
 
   * sudo setcap cap_sys_nice+ep /usr/bin/wine64-preloader
   * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader  
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
-
   
-  If using Rolesyuk's Ubuntu packages;
+  If using Rolesyuk's Ubuntu packages (Ubuntu definitely has this issue);
   
   * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine64-preloader
   * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine-preloader
@@ -166,11 +163,14 @@ ____
   
   else;
   
-  * find it your yourself! you get the idea ;-)
+  * find the path yourself! you get the idea ;-)
   
-  On my system, I don't need to do any of this; but it may be needed for yours.
+  NOTE: This is due to a bug in Jack2 that was fixed in v1.9.13. If using Jack2 v1.9.13/v1.9.14 -> you shouldn't need to 
+  run the above commands. -> Therefore, I'd strongly recommend not using old versions of Jack. That said; if you 
+  have no choice, then the above workaround exists for you.
   
-  Execute after installation and also updates, if needed.
+  Additionally, execute the (above) commands; after installation and also updates.
+  
 ____
 OTHER ENVIRONMMENT VARIABLES / FEATURES:
 
