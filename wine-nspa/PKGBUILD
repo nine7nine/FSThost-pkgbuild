@@ -41,6 +41,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa_replace_wine-staging_banner.patch
         nspa_wine-nspa_RT_implementation.patch
         nspa_wineserver-fix_prio_steps.patch
+        nspa_ntdll_sync_realtime_and_misc.patch
         nspa_Fix_order_to_enable_application_window.patch         
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
@@ -70,6 +71,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'ffa0f67b5df9383229a5ce01d91c004d978f97579478a07a66b39fc2a5039e587deb3f7029794165d5065f72a32a72d973fa49c2c9e20fb24fd7ed6cb823795e'
             'f1098348a8b65e7d636b884ccf44d4a2df6918c35e1df053bd0a29f4936fca955ab7e694077b2d54c015305db31532f6ecb8a2fcceed743a669364bafe4e10dc'
             'b48cfc1dda5a42f342dd2e42d683b52de0e11fb0a938a30c5b178c4d83cf28860e5e2576163422c80b0ea8c0a3791acd7da56e93a42e2f055f090acb582a629c'
+            '39759ed5c3fda92de558514a954405d9db1f57067328ae0003da9f3d2addc14a975d7329feb189144b132d47c78efa7a4d4e71030dae9717614a6e9580ddb6ea'
             'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
@@ -250,6 +252,9 @@ prepare() {
    
   msg "Applying nspa_wineserver-fix_prio_steps.patch"
   patch -s -Np1 -i $srcdir/nspa_wineserver-fix_prio_steps.patch
+
+  msg "Applying nspa_ntdll_sync_realtime_and_misc.patch" 
+  patch -s -Np1 -i $srcdir/nspa_ntdll_sync_realtime_and_misc.patch
   
   # below are applied, but not used anywhere.     
     
