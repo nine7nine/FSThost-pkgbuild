@@ -7,7 +7,7 @@
 
 pkgname=wine-nspa
 pkgver=5.9
-pkgrel=15
+pkgrel=16
 
 _pkgbasever=${pkgver/rc/-rc}
 
@@ -65,7 +65,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'a0a8386786c1271688d1680d1f50882321506547e4c3cebcda984b49cd6d0fd01e8af4a4d7a39a0c25ac51e5759d60acf643ec3f6ea95d7b1019ceac48d640ea'
             'f95b7aa2f088cf57b719b67a30456b21ce8afb67a52f9a4244bccb103ce73cf7bc1f0568aa5a7d9e457e75d429ca6685ea842372c2710949ecbf5dbff91b8991'
             '0634e5019dd9b89a41d33b7b560aa2724c8f497119737b08876677ef0dd0106bc45252b220b0a30743d76023b1ceedcced4c6fde59ae37864b5613e6c642f423'
-            '778a33bc9a1ab86f9d8c3f52a775f3844c31e549970bec0d5485b389c42de695ed39235912315b57d2f2f4132f99b983f6345f655b10bc062bea594ec82d93b3'
+            'e02b6278d29584b86fbf8829202b3a66603be063da956723268ea915dda3f6f5bce9dc2dbea7424b73d504f8f3aa564237e55072c3285ef94bc7edd336f6ba00'
             'ffa0f67b5df9383229a5ce01d91c004d978f97579478a07a66b39fc2a5039e587deb3f7029794165d5065f72a32a72d973fa49c2c9e20fb24fd7ed6cb823795e'
             '4d746c7ed593343f860cc64fc30fa84783f839138415238fd2d818835b2116ccaa01d6b33e13fb858d8bdddebd9b07ba204be4555a167d7273708f550a516feb'
             'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b')
@@ -212,8 +212,11 @@ prepare() {
   msg "Applying disable-winedbg-auto-crash-dialog.patch"
   patch -s -Np1 -i $srcdir/disable-winedbg-auto-crash-dialog.patch
 
-  msg "Applying disable-wine-prefix-update-window.patch"
-  patch -s -Np1 -i $srcdir/disable-wine-prefix-update-window.patch
+#  I'm going to re-implement something similar but better to disable for now, as to 
+#  avoid issues with creating wine-prefixes.
+#
+#  msg "Applying disable-wine-prefix-update-window.patch"
+#  patch -s -Np1 -i $srcdir/disable-wine-prefix-update-window.patch
 
   msg "Applying hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch"
   patch -s -Np1 -i $srcdir/hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch

@@ -14,3 +14,14 @@ diff -pur a/dlls/ntdll/Makefile.in b/dlls/ntdll/Makefile.in
  
  dummy:
  .PHONY: dummy
+--- a/libs/wine/config.c.orig	2020-07-08 13:55:43.869033072 -0400
++++ b/libs/wine/config.c	2020-07-08 13:52:29.364088540 -0400
+@@ -1226,7 +1226,7 @@ wine_patch_data[] =
+     { "Sebastian Lackner", "wineboot: Init system32/drivers/etc/{host,networks,protocol,services}.", 1 },
+     { "Sebastian Lackner", "winecfg: Add checkbox to enable/disable HideWineExports registry key.", 1 },
+     { "Sebastian Lackner", "winecfg: Add checkbox to enable/disable vaapi GPU decoder.", 1 },
+-    { "Sebastian Lackner", "winelib: Append '(Staging)' at the end of the version string.", 1 },
++    { "Sebastian Lackner", "winelib: Append '(NSPA)' at the end of the version string.", 1 },
+     { "Sebastian Lackner", "winemenubuilder: Create desktop shortcuts with absolute wine path.", 1 },
+     { "Sebastian Lackner", "winepulse.drv: Use a separate mainloop and ctx for pulse_test_connect.", 1 },
+     { "Sebastian Lackner", "winex11: Enable/disable windows when they are (un)mapped by foreign applications.", 1 },
