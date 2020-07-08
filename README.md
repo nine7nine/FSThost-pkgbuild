@@ -3,10 +3,14 @@
 Git Repo for my wine-nspa / linux-nspa flavours for Archlinux.
 
 That said, nothing makes this exclusive to Arch. For example, Rolesyuk has kindly
-packaged binaries of Wine-NSPA for Ubuntu + He has binaries for a PREEMPT_RT kernel with
+packaged binaries of Wine-NSPA for Ubuntu 20.04 + He has binaries for a PREEMPT_RT kernel with
 futex-multiple-wait to support fsync in Wine-NSPA. 
 
 https://github.com/rolesyuk/rt_audio/releases
+
+Furthermore, he has scripts to build these packages + grab jack2 1.9.14 deb on 20.04;
+
+https://github.com/rolesyuk/rt_audio
 
 _______
  # Linux-NSPA; my custom kernel.
@@ -155,7 +159,7 @@ ____
   * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader  
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
   
-  If using Rolesyuk's Ubuntu packages (Ubuntu definitely has this issue);
+  If using Rolesyuk's Ubuntu packages (Ubuntu versions below "Groovy" definitely has this issue);
   
   * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine64-preloader
   * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine-preloader
@@ -165,12 +169,18 @@ ____
   
   * find the path yourself! you get the idea ;-)
   
+  Additionally, execute the (above) commands; after installation and also updates.
+  
   NOTE: This is due to a bug in Jack2 that was fixed in v1.9.13. If using Jack2 v1.9.13/v1.9.14 -> you shouldn't need to 
   run the above commands. -> Therefore, I'd strongly recommend not using old versions of Jack. That said; if you 
   have no choice, then the above workaround exists for you.
   
-  Additionally, execute the (above) commands; after installation and also updates.
+  that all said, it's possible to get newer Jack2 packages in Ubuntu. Rolesyuk has done just that;
   
+  https://github.com/rolesyuk/rt_audio/tree/master/jack
+  
+  Building Jack2 from source is relatively easy, as well.
+    
 ____
 OTHER ENVIRONMMENT VARIABLES / FEATURES:
 
@@ -179,6 +189,10 @@ Wine-NSPA contains some other stuff, as well.
 I disable the update window, by default. It can be enabled with; (yup, env variables)
   
   * ENABLE_UPDATE_WINDOW=1
+  
+  NOTE: You will need to enable this to create a wine-prefix. It will fail to create a prefix, if
+        this env variable is set =0. Currently, =0 isn't handled gracefully; but I'll be revising the patch 
+        to not even attempt to create a wine-prefix if =0 is set.
   
 I also disable the crash dialog... In both cases, I don't like just find them annoying and disruptive. This
 also tends to make things feel more integrated, as you don't get random windows dialogs opening, say, after
