@@ -1,0 +1,77 @@
+ - Hook thread_data->pthread_id for validSyncThread / ntdll_set_sync_realtime()
+ 
+ This still isn't quite right, but it's much closer ;-) No more crashes. 
+ 
+ With this patch; A number of Wine's threads become realtime. (in things like 
+ winedevice.exe, plugplay.exe, etc). Not all, of course; they are filtered
+ through. (eg: handle == GetCurrentThread are unsupported threads).
+ 
+ This is helpful, as i know 100% there are situations where if some of these 
+ threads are not RT - they can actually be starved / interrupted and that does
+ lead to xruns... I did a simple test pegging 3 cpu cores to 50% with RT tasks;
+ sure enough, without the patch: a few xruns -- with the patch ZERO xruns.
+ 
+ (anything above ZERO xruns is unacceptable. for me anyway)
+ 
+ Anyway, this is a first step toward getting NSPA_RT_SYNC to play nice. Not 
+ ready for primetime, but this is at least helpful / a step in the right 
+ direction. 
+ 
+ I'm going to need to spend some time of this, to get everything right. As some
+ bits are still clearly wrong.
+ 
+ not applying this for now. WIP... 
+ 
+ johnstonljordan <AT> gmail <DOT> com
+   
+--- a/dlls/ntdll/thread.c	2020-07-08 14:00:12.308628726 -0400
++++ b/dlls/ntdll/thread.c	2020-07-08 19:31:28.967783948 -0400
+@@ -928,9 +928,8 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+     thread_data->esync_queue_fd = 0;
+     thread_data->esync_apc_fd = 0;
+     thread_data->fsync_apc_idx = 0;
+-#ifdef NSPA_RT_THREADS
+     thread_data->pthread_id  =  0;
+-#endif
++
+     pthread_attr_init( &pthread_attr );
+     pthread_attr_setstack( &pthread_attr, teb->DeallocationStack,
+                          (char *)teb->Tib.StackBase + extra_stack - (char *)teb->DeallocationStack );
+@@ -957,25 +956,30 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+     // 
+     // Catch all Synchronization Threads;
+     pthread_t validSyncThread = (thread_data->fsync_apc_idx || thread_data->esync_apc_fd ||
+-                                 thread_data->esync_queue_fd);
++                                 thread_data->esync_queue_fd || thread_data->pthread_id);
+     if (validSyncThread == 0) {
+         int i;
+         for (i = 0; i < 100; ++i) {
+             validSyncThread = (thread_data->fsync_apc_idx || thread_data->esync_apc_fd ||
+-                               thread_data->esync_queue_fd);
++                               thread_data->esync_queue_fd || thread_data->pthread_id);
+             if (validSyncThread == 0)
+-                usleep(100);
++                usleep(300);
+         }
+     }
+     if (validSyncThread != 0) {
++        // Fail on unsupported threads;
++        if (handle == GetCurrentThread()) {
++            ERR("failed - current thread unsupported");
++            return 0;
++        }
++
+         // this may be redundant, but set PTHREAD_EXPLICIT_SCHED for the
+         // esync/fsync kernel-mode APC threads.
+         pthread_attr_setinheritsched(&pthread_attr, PTHREAD_EXPLICIT_SCHED);
+         // set RT for sync threads
+-    	ntdll_set_sync_realtime(validSyncThread, wine_rt_policy, priority);
+-    	}
+-    else
+-        WARN("no RT sync for thread\n");
++    	ntdll_set_sync_realtime(pthread_self(), wine_rt_policy, priority);
++    	// fprintf(stderr, "SyncThread %ld\n", pthread_self());
++    }
+ #endif
+ 
+     return STATUS_SUCCESS;
