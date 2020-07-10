@@ -1,0 +1,104 @@
+ - drop the macro/ifdef and expose thread_data->pthread_id inside of 
+   NtCreateThreadEx() and add it to the validSyncThread list.
+ 
+ - ensure we don't select unsupported threads, or things will blow up.
+ 
+ - use pthread_self() to grab the pthread_ids in ntdll_set_sync_realtime().
+  
+ - add NSPA_THREAD_INFO debug option:
+ 
+ Currently, this option returns a few things;
+ 
+ - Windows Thread ID
+ - Program/Process Name
+ - Pthread Thread ID
+ - Linux Thread ID
+ - Posix Thread Priority
+ 
+ Policy is intentionally not added. It's largely unimportant here, as for MAX 
+ priority threads (and any threads set as RT in ntdll) they will all be FF...and
+ for any high priority threads, they will be RR... If the thread priority is 0, 
+ that means it's SCHED_OTHER.
+ 
+ NOTE: pthread_self() doesn't return linux TIDs - which is why i check both.
+ 
+ I'm going to try and wire up more useful thread info.  
+ 
+--- a/dlls/ntdll/thread.c	2020-07-08 14:00:12.308628726 -0400
++++ b/dlls/ntdll/thread.c	2020-07-09 19:04:59.123705233 -0400
+@@ -23,6 +23,7 @@
+ 
+ #include <assert.h>
+ #include <stdarg.h>
++#include <unistd.h>
+ #include <string.h>
+ #include <stdio.h>
+ #include <limits.h>
+@@ -642,6 +643,8 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+     int wine_rt_policy = 0;
+     pthread_attr_setschedpolicy (&pthread_attr, wine_rt_policy);
+     pthread_attr_setschedparam (&pthread_attr, &parm);
++    // glibc get the program name
++    extern char *__progname;
+ #endif
+     BOOLEAN suspended = !!(flags & THREAD_CREATE_FLAGS_CREATE_SUSPENDED);
+     CLIENT_ID *id = NULL;
+@@ -807,25 +810,49 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+     // 
+     // Catch all Synchronization Threads;
+     pthread_t validSyncThread = (thread_data->fsync_apc_idx || thread_data->esync_apc_fd ||
+-                                 thread_data->esync_queue_fd);
++                                 thread_data->esync_queue_fd || thread_data->pthread_id);
+     if (validSyncThread == 0) {
+         int i;
+         for (i = 0; i < 100; ++i) {
+             validSyncThread = (thread_data->fsync_apc_idx || thread_data->esync_apc_fd ||
+-                               thread_data->esync_queue_fd);
++                               thread_data->esync_queue_fd || thread_data->pthread_id);
+             if (validSyncThread == 0)
+-                usleep(100);
++                usleep(300);
+         }
+     }
+     if (validSyncThread != 0) {
+-        // this may be redundant, but set PTHREAD_EXPLICIT_SCHED for the
+-        // esync/fsync kernel-mode APC threads.
+-        pthread_attr_setinheritsched(&pthread_attr, PTHREAD_EXPLICIT_SCHED);
++        // Fail on unsupported threads;
++        if (handle == GetCurrentThread()) {
++            fprintf(stderr, "Windows ID: %d => Program Name: %s\n", GetCurrentThreadId(), __progname);
++    	     fprintf(stderr, "Invalid RT Thread => GetCurrentThread(): %p\n", GetCurrentThread());
++            return status;
++        }
++
+         // set RT for sync threads
+-    	ntdll_set_sync_realtime(validSyncThread, wine_rt_policy, priority);
++    	ntdll_set_sync_realtime(pthread_self(), wine_rt_policy, priority);
++    	
++    	// Add runtime option for checking thread info.
++    	const char *threadInfo = getenv("NSPA_THREAD_INFO");
++    	
++       if (threadInfo) {
++     	    struct sched_param param;
++    	    // if sched_getparam() returns zero, lets go;
++    	    if (sched_getparam( gettid(), &param ) == 0) {
++    	    
++    	    // Get the thread priority
++    	    sched_getparam(0, &param);
++    	    
++    	    // note: policy isn't of interest here. it's FIFO.
++    	    // if 0 is returned - it's SCHED_OTHER.
++    	    
++    	    // Thread / Process Info. 
++            fprintf(stderr, "Windows ID: %d => Program Name: %s\n", GetCurrentThreadId(), __progname);
++    	    fprintf(stderr, "NtCreateThreadEx => pthread_self(): %ld\n", pthread_self());
++    	    fprintf(stderr, "NtCreateThreadEx => glibc gettid(): %d\n", gettid());
++    	    fprintf(stderr, "Thread Priority: %d\n", param.sched_priority);
++    	    }
+     	}
+-    else
+-        WARN("no RT sync for thread\n");
++    }
+ #endif
+ 
+     return STATUS_SUCCESS;
