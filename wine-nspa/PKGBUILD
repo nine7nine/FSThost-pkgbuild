@@ -7,7 +7,7 @@
 
 pkgname=wine-nspa
 pkgver=5.9
-pkgrel=16
+pkgrel=17
 
 _pkgbasever=${pkgver/rc/-rc}
 
@@ -37,6 +37,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         fsync_ntdll_file_flush.patch
         nspa-muse_pipesync_partial_merge1.patch
         nspa_ntdll_tweak-hash_short_file_name.patch
+        nspa-setupapi_fix_handling_arch-specific_SourceDisks_inf_sections.patch
         nspa_wine-nspa_version_string.patch
         nspa_replace_wine-staging_banner.patch
         nspa_wine-nspa_RT_implementation.patch
@@ -66,6 +67,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'a0a8386786c1271688d1680d1f50882321506547e4c3cebcda984b49cd6d0fd01e8af4a4d7a39a0c25ac51e5759d60acf643ec3f6ea95d7b1019ceac48d640ea'
             'f95b7aa2f088cf57b719b67a30456b21ce8afb67a52f9a4244bccb103ce73cf7bc1f0568aa5a7d9e457e75d429ca6685ea842372c2710949ecbf5dbff91b8991'
             '0634e5019dd9b89a41d33b7b560aa2724c8f497119737b08876677ef0dd0106bc45252b220b0a30743d76023b1ceedcced4c6fde59ae37864b5613e6c642f423'
+            '2a7e80baa6f6f69a9567d853e58a690ffaeac255e6b7386721df43275b2be597337d891488effc8cfe9fc5d7cf6087118099ec45b74402b8a413bc28ab8e76d1'
             'e02b6278d29584b86fbf8829202b3a66603be063da956723268ea915dda3f6f5bce9dc2dbea7424b73d504f8f3aa564237e55072c3285ef94bc7edd336f6ba00'
             'ffa0f67b5df9383229a5ce01d91c004d978f97579478a07a66b39fc2a5039e587deb3f7029794165d5065f72a32a72d973fa49c2c9e20fb24fd7ed6cb823795e'
             '4d746c7ed593343f860cc64fc30fa84783f839138415238fd2d818835b2116ccaa01d6b33e13fb858d8bdddebd9b07ba204be4555a167d7273708f550a516feb'
@@ -238,6 +240,12 @@ prepare() {
   msg "Applying nspa_ntdll_tweak-hash_short_file_name.patch"
   patch -s -Np1 -i $srcdir/nspa_ntdll_tweak-hash_short_file_name.patch
 
+ # temp fix (below). Eyes are on this upstream/Wine, but adding for now. As it should
+ # fix newer NI installer; sub-installers from failing/hanging...
+
+  msg "Applying nspa-setupapi_fix_handling_arch-specific_SourceDisks_inf_sections.patch"
+  patch -s -Np1 -i $srcdir/nspa-setupapi_fix_handling_arch-specific_SourceDisks_inf_sections.patch
+
   # NOTE: next two patches get reversed. prep for Wine-NSPA RT patch.
   
   msg "Reversing 0001-wineserver-Draft-to-implement-priority-levels-throug.patch"
@@ -251,7 +259,7 @@ prepare() {
   msg "Applying nspa_wine-nspa_RT_implementation.patch"
   patch -s -Np1 -i $srcdir/nspa_wine-nspa_RT_implementation.patch
 
-#  DON'T USE / NOT READY
+# DONT USE / NOT READY
 #
 #  msg "Applying nspa_ntdll-NtCreateThreadEx_develop-rt.patch"  
 #  patch -s -Np1 -i $srcdir/nspa_ntdll-NtCreateThreadEx_develop-rt.patch
