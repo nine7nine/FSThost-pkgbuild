@@ -8,7 +8,7 @@ futex-multiple-wait to support fsync in Wine-NSPA.
 
 https://github.com/rolesyuk/rt_audio/releases
 
-Furthermore, he has scripts to build these packages + grab jack2 1.9.14 deb on 20.04;
+Furthermore, he has scripts to build these packages + an automated script to grab jack2 1.9.14 deb on 20.04;
 
 https://github.com/rolesyuk/rt_audio
 
@@ -159,7 +159,7 @@ ____
   * sudo setcap cap_sys_nice+ep /usr/bin/wine-preloader  
   * sudo setcap cap_sys_nice+ep /usr/bin/wineserver
   
-  If using Rolesyuk's Ubuntu packages (Ubuntu versions below "Groovy" definitely has this issue);
+  If using Rolesyuk's Ubuntu packages, with Jack 1.9.12 or under;
   
   * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine64-preloader
   * sudo setcap cap_sys_nice+ep /opt/wine-nspa/bin/wine-preloader
@@ -175,7 +175,8 @@ ____
   run the above commands. -> Therefore, I'd strongly recommend not using old versions of Jack. That said; if you 
   have no choice, then the above workaround exists for you.
   
-  that all said, it's possible to get newer Jack2 packages in Ubuntu. Rolesyuk has done just that;
+  that all said, it's possible to get newer Jack2 packages in Ubuntu. Rolesyuk has done just that, with an automated
+  script that grabs and replaces the older ubuntu jack2 packages, with new ones;
   
   https://github.com/rolesyuk/rt_audio/tree/master/jack
   
