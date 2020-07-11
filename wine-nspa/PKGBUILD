@@ -41,6 +41,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa_replace_wine-staging_banner.patch
         nspa_wine-nspa_RT_implementation.patch
         nspa_ntdll-NtCreateThreadEx_develop-rt.patch
+        nspa_ntdll-NtCreateThreadEx_develop-rt2.patch
         nspa_Fix_order_to_enable_application_window.patch         
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
@@ -70,6 +71,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'ffa0f67b5df9383229a5ce01d91c004d978f97579478a07a66b39fc2a5039e587deb3f7029794165d5065f72a32a72d973fa49c2c9e20fb24fd7ed6cb823795e'
             '4d746c7ed593343f860cc64fc30fa84783f839138415238fd2d818835b2116ccaa01d6b33e13fb858d8bdddebd9b07ba204be4555a167d7273708f550a516feb'
             'b98e666dc7329ef3e77a1671b25ca3064aa76d361b7811c30311c789e346d43e6164b565c65f0d11058326be7b22dc3ac601e9103686ca282a891092e88f2cb4'
+            'fcb4abc783f090e4199af2c517b8d88b1aa9ace84682fb7355ab8986e3f103fff7691dbcf4058b98319cdf73b71b5fce37e37537dc5d55a7e491da901948a23b'
             'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
@@ -251,10 +253,13 @@ prepare() {
   msg "Applying nspa_wine-nspa_RT_implementation.patch"
   patch -s -Np1 -i $srcdir/nspa_wine-nspa_RT_implementation.patch
 
-#  DON'T USE
+#  DON'T USE / NOT READY
 #
 #  msg "Applying nspa_ntdll-NtCreateThreadEx_develop-rt.patch"  
 #  patch -s -Np1 -i $srcdir/nspa_ntdll-NtCreateThreadEx_develop-rt.patch
+#
+#  msg "Applying nspa_ntdll-NtCreateThreadEx_develop-rt2.patch"  
+#  patch -s -Np1 -i $srcdir/nspa_ntdll-NtCreateThreadEx_develop-rt2.patch
 
   # below applied, but not used anywhere.     
   
