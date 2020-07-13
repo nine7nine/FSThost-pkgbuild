@@ -43,6 +43,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa_wine-nspa_RT_implementation.patch
         nspa_ntdll-NtCreateThreadEx_develop-rt.patch
         nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
+        nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch
         nspa_Fix_order_to_enable_application_window.patch         
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
@@ -74,6 +75,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             '4d746c7ed593343f860cc64fc30fa84783f839138415238fd2d818835b2116ccaa01d6b33e13fb858d8bdddebd9b07ba204be4555a167d7273708f550a516feb'
             '15d6ea116a1c7d108fed92acd2169407405a3b273a048d819346fd4294a9ba46bfc25b7f8b743522524481ec97025c7b9eefbb08735f6202501dc49de8bd1aff'
             '29df0a13358d101041c14057c9e12159d5298e9d3179f750c672786736c8028aac26555fa00fde7277e7e59caf71d63b70d4eec90f8dee5d455dbcd5c7de4018'
+            'b4ec1c75d82ed4a1e9bcffb58c42e1b271727bd58d64b4619c7fd2086de438c3ca746c29f1b1c3e28b47df71be6bb476453b30c7934621a6bd2fb21ded3d76a5'
             'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
@@ -260,12 +262,15 @@ prepare() {
   
   msg "Applying nspa_wine-nspa_RT_implementation.patch"
   patch -s -Np1 -i $srcdir/nspa_wine-nspa_RT_implementation.patch
+  
+# DONT USE / NOT READY / NEEDS MORE TESTING
 
-# DONT USE / NOT READY
-#
 #  msg "Applying nspa_ntdll-NtCreateThreadEx_develop-rt.patch"  
 #  patch -s -Np1 -i $srcdir/nspa_ntdll-NtCreateThreadEx_develop-rt.patch
-#
+
+#  msg "Applying nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch"
+#  patch -s -Np1 -i $srcdir/nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch
+
 #  msg "Applying nspa_kernelbase-implement_SetProcessWorkingSetSize.patch"  
 #  patch -s -Np1 -i $srcdir/nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
 
