@@ -1,9 +1,8 @@
- >>>>>>>>  Wine-NSPA Realtime Patch v1.2 <<<<<<<<<
+ >>>>>>>>  Wine-NSPA Realtime Patch v2.0 <<<<<<<<<
 
- This is the RT patch for Wine-NSPA (fyi, it depends on
- code/features not present in Wine (Upstream) or Wine-Staging, such as fsync... 
- NOTE: It also depends on dbus, rtkit, setpriority() and libpthread 
- (obviously).
+ This is the RT patch for Wine-NSPA. it depends on code/features not present 
+ in Wine (Upstream) or Wine-Staging, such as fsync... NOTE: It also depends 
+ on dbus, rtkit, setpriority() and libpthread (obviously).
  
  it is configured using two wine environment variables;
  
@@ -14,54 +13,50 @@
  difference in priority between threads is handled in Wine - no user
  intervention. no messing with wineserver, either. 
  
- The emphasis / design here is to keep RT threads as high as possible, including 
- and especially for synchronization related threads.
- 
  This patch is a combination of (and modifications to) previous works;
  
  1). Rémi Bernon's patch for implementing Windows API process prioclasses.
  2). the wine-Staging / wine RT patch
  3). a few bits taken from the Muse Recepter RT patch.
- 40. my own hacking.
 
  Notes:
 
- - Rémi's patch: I needed to change how RT threads were prioritized, as I
- need them much higher priorities, beyond what his patchwork provided and it 
- also needed to be made compatible with bits from the staging RT patch.
+ - Rémi's patch: provides support for Windows Prioclasses with relative steps.
+   This patch is great, but needed to be modified to support RT/proaudio usage.
 
- I also removed the rtkit code from the RT path.
+   I also removed the rtkit code from the RT path.
  
- - The staging RT patch: needed to be adapted/simplified for wine-nspa. Being as 
- I have unix_get_priority() - scheduler.c doesn't need to figure out what thread
- priorities to map... it only checks to see if the process is realtime class, 
- and if it is; great! make it RT - if not, it's SCHED_OTHER.
+ - The staging RT patch: needed to be adapted for wine-nspa. Being as I have 
+ unix_get_priority() - scheduler.c doesn't need to figure out what thread
+ priorities to map... it only checks to see if the process is realtime class and
+ a thread we want as RT - if so; set to RT + policy. If not: run it as 
+ SCHED_OTHER.
+   
+ - Muse RT patch: I pulled the RT policy code from here, as well as adapting 
+   their code for setting RT from within ntdll, as well as filtering through 
+   ntdll_thread_data for candidate threads for RT.
+   
+ NSPA RT v2: changes things up a bit;
  
- I've also modified the code to allow setting RT policy && also to catch any 
- threads that might be candidates for RT...
-  
- - Muse RT patch: I pulled the RT policy code from here and I will probably be
- re-writing part of the staging RT code portions to use something simplified and
- fast like the RT policy code. but for grabbing the priority from the \
- environment.
+ - i can catch all of the non-win32 threads now. So Wine-NSPA's main process 
+ threads can be run RT, while it's win32 threads will continue to mapped based 
+ on it's winapi scheduling/prioclass and priority. This avoids starvation and 
+ guards the program/process itself, as well as Wine's own modules/processes.
  
- Next, some of my code in ntdll is pulled/inspired from the muse RT patch (well, 
- and from Ardour). Providing an RT function / code that can filter through 
- ntdll_thread_data, in search of fsync/esync APC threads. 
+ - Limiting RT priorities to THREAD_PRIORITY_HIGHEST and above. ABOVE_NORMAL can
+ and does cause xruns; as GUI threads are sometimes set this way. These threads
+ shouldn't be RT on linux. the process itself is now guarded, I don't think any
+ GUI is going to become unresponsive.
  
- v1.2 introduces esync RT support in Ntdll. I haven't tested this much yet. 
- 
- One potential problem with esync is that it can leak resources / exhaust 
- a system's open file limit. Fsync does NOT have this issue, at all. So 
- naturally; fsync is the way to go, imo.
+ - shuffled priority map, a bit. 
  
  NOTE: this RT patch is still WIP. I have other plans in motion for it.
 
  johnstonljordan <AT> gmail <DOT> com
 
-diff -Npur b/configure a/configure
---- b/configure	2020-06-27 11:15:47.552502000 -0400
-+++ a/configure	2020-06-27 11:13:04.622758000 -0400
+diff -Npur a/configure b/configure
+--- a/configure	2020-07-16 01:33:47.391864000 -0400
++++ b/configure	2020-07-16 01:36:25.673921000 -0400
 @@ -13890,9 +13890,14 @@ $as_echo "$as_me:${as_lineno-$LINENO}: d
  $as_echo "$as_me:${as_lineno-$LINENO}: dbus-1 libs: $DBUS_LIBS" >&5
  ac_save_CPPFLAGS=$CPPFLAGS
@@ -163,9 +158,9 @@ diff -Npur b/configure a/configure
  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for fallocate" >&5
  $as_echo_n "checking for fallocate... " >&6; }
  if ${wine_cv_have_fallocate+:} false; then :
-diff -Npur b/configure.ac a/configure.ac
---- b/configure.ac	2020-06-27 11:15:47.555502000 -0400
-+++ a/configure.ac	2020-06-27 11:13:04.624758000 -0400
+diff -Npur a/configure.ac b/configure.ac
+--- a/configure.ac	2020-07-16 01:33:47.393864000 -0400
++++ b/configure.ac	2020-07-16 01:36:25.675921000 -0400
 @@ -1485,7 +1485,7 @@ dnl **** Check for libdbus ****
  if test "x$with_dbus" != "xno"
  then
@@ -201,9 +196,9 @@ diff -Npur b/configure.ac a/configure.ac
  AC_CACHE_CHECK([for fallocate],wine_cv_have_fallocate,
                  AC_LINK_IFELSE([AC_LANG_PROGRAM(
  [[#define _GNU_SOURCE
-diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
---- a/dlls/ntdll/thread.c	2020-07-07 21:55:57.077546000 -0400
-+++ b/dlls/ntdll/thread.c	2020-07-07 02:56:54.269405000 -0400
+diff -Npur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+--- a/dlls/ntdll/thread.c	2020-07-16 01:33:47.485890000 -0400
++++ b/dlls/ntdll/thread.c	2020-07-16 01:57:57.098633171 -0400
 @@ -54,6 +54,55 @@ WINE_DEFAULT_DEBUG_CHANNEL(thread);
  #define PTHREAD_STACK_MIN 16384
  #endif
@@ -251,7 +246,7 @@ diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
 +        thread_apc_priority = apc_priority;
 +    }
 +	struct sched_param param;	
-+	param.sched_priority = thread_apc_priority -1;
++	param.sched_priority = thread_apc_priority -2;
 +
 +	return pthread_setschedparam (pthread_id, wine_rt_policy, &param);
 +}
@@ -260,7 +255,7 @@ diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
  struct _KUSER_SHARED_DATA *user_shared_data = NULL;
  
  extern void DECLSPEC_NORETURN __wine_syscall_dispatcher( void );
-@@ -735,6 +784,13 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+@@ -587,6 +636,15 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
      pthread_attr_t pthread_attr;
      struct ntdll_thread_data *thread_data;
      struct startup_info *info;
@@ -270,22 +265,31 @@ diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
 +    int wine_rt_policy = 0;
 +    pthread_attr_setschedpolicy (&pthread_attr, wine_rt_policy);
 +    pthread_attr_setschedparam (&pthread_attr, &parm);
++    pthread_mutexattr_t mattr;
++    pthread_mutexattr_setprotocol(&mattr, PTHREAD_PRIO_PROTECT);
 +#endif
      BOOLEAN suspended = !!(flags & THREAD_CREATE_FLAGS_CREATE_SUSPENDED);
      CLIENT_ID *id = NULL;
      HANDLE handle = 0, actctx = 0;
-@@ -869,8 +925,8 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+@@ -721,10 +779,14 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
      thread_data->wait_fd[0]  = -1;
      thread_data->wait_fd[1]  = -1;
      thread_data->start_stack = (char *)teb->Tib.StackBase;
 -    thread_data->esync_queue_fd = -1;
 -    thread_data->esync_apc_fd = -1;
++#if NSPA_RT_SYNC
 +    thread_data->esync_queue_fd = 0;
 +    thread_data->esync_apc_fd = 0;
      thread_data->fsync_apc_idx = 0;
- #ifdef NSPA_RT_THREADS
-     thread_data->pthread_id  =  0;
-@@ -894,6 +950,33 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
+-
++    thread_data->pthread_id  =  0;
++    
++    pthread_mutexattr_init ( &mattr );
++#endif
+     pthread_attr_init( &pthread_attr );
+     pthread_attr_setstack( &pthread_attr, teb->DeallocationStack,
+                          (char *)teb->Tib.StackBase + extra_stack - (char *)teb->DeallocationStack );
+@@ -744,6 +806,35 @@ NTSTATUS WINAPI NtCreateThreadEx( HANDLE
      if (id) id->UniqueThread = ULongToHandle(tid);
      if (handle_ptr) *handle_ptr = handle;
      else NtClose( handle );
@@ -296,32 +300,34 @@ diff -pur a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
 +    // 
 +    // Catch all Synchronization Threads;
 +    pthread_t validSyncThread = (thread_data->fsync_apc_idx || thread_data->esync_apc_fd ||
-+                                 thread_data->esync_queue_fd);
++                                 thread_data->esync_queue_fd || thread_data->pthread_id);
 +    if (validSyncThread == 0) {
 +        int i;
 +        for (i = 0; i < 100; ++i) {
 +            validSyncThread = (thread_data->fsync_apc_idx || thread_data->esync_apc_fd ||
-+                               thread_data->esync_queue_fd);
++                               thread_data->esync_queue_fd || thread_data->pthread_id);
 +            if (validSyncThread == 0)
-+                usleep(100);
++                usleep(300);
 +        }
 +    }
 +    if (validSyncThread != 0) {
-+        // this may be redundant, but set PTHREAD_EXPLICIT_SCHED for the
-+        // esync/fsync kernel-mode APC threads.
-+        pthread_attr_setinheritsched(&pthread_attr, PTHREAD_EXPLICIT_SCHED);
++        // Fail on / filter out unsupported threads;
++        if (handle == GetCurrentThread() && (validSyncThread != thread_data->fsync_apc_idx || 
++            thread_data->esync_apc_fd || thread_data->esync_queue_fd)) {
++            return status;
++        }
++
 +        // set RT for sync threads
-+    	ntdll_set_sync_realtime(validSyncThread, wine_rt_policy, priority);
-+    	}
-+    else
-+        WARN("no RT sync for thread\n");
++        pthread_attr_setinheritsched(&pthread_attr, PTHREAD_EXPLICIT_SCHED);
++        ntdll_set_sync_realtime(pthread_self(), wine_rt_policy, priority);
++    }
 +#endif
  
      return STATUS_SUCCESS;
  
-diff -Npur b/include/config.h.in a/include/config.h.in
---- b/include/config.h.in	2020-06-27 11:15:47.425500000 -0400
-+++ a/include/config.h.in	2020-06-27 11:13:04.624758000 -0400
+diff -Npur a/include/config.h.in b/include/config.h.in
+--- a/include/config.h.in	2020-07-16 01:33:47.179804000 -0400
++++ b/include/config.h.in	2020-07-16 01:36:25.676920000 -0400
 @@ -100,6 +100,9 @@
  /* Define to 1 if you have the <curses.h> header file. */
  #undef HAVE_CURSES_H
@@ -352,11 +358,9 @@ diff -Npur b/include/config.h.in a/include/config.h.in
  /* Define to 1 if you have the `setproctitle' function. */
  #undef HAVE_SETPROCTITLE
  
-diff -Npur b/server/main.c a/server/main.c
-
 diff -Npur a/server/main.c b/server/main.c
---- a/server/main.c	2020-07-07 21:55:57.069550000 -0400
-+++ b/server/main.c	2020-07-07 02:56:54.259405000 -0400
+--- a/server/main.c	2020-07-16 01:33:47.480889000 -0400
++++ b/server/main.c	2020-07-16 01:36:25.676920000 -0400
 @@ -150,6 +150,7 @@ int main( int argc, char *argv[] )
  
      if (debug_level) fprintf( stderr, "wineserver: starting (pid=%ld)\n", (long) getpid() );
@@ -366,8 +370,8 @@ diff -Npur a/server/main.c b/server/main.c
      init_directories();
      init_registry();
 diff -Npur a/server/Makefile.in b/server/Makefile.in
---- a/server/Makefile.in	2020-07-07 21:55:57.069550000 -0400
-+++ b/server/Makefile.in	2020-07-07 02:56:54.259405000 -0400
+--- a/server/Makefile.in	2020-07-16 01:33:47.480889000 -0400
++++ b/server/Makefile.in	2020-07-16 01:36:25.677920000 -0400
 @@ -32,6 +32,7 @@ C_SRCS = \
  	region.c \
  	registry.c \
@@ -385,7 +389,7 @@ diff -Npur a/server/Makefile.in b/server/Makefile.in
 +EXTRALIBS = $(LDEXECFLAGS) $(POLL_LIBS) $(RT_LIBS) $(INOTIFY_LIBS) $(DBUS_LIBS)
 diff -Npur a/server/scheduler.c b/server/scheduler.c
 --- a/server/scheduler.c	1969-12-31 19:00:00.000000000 -0500
-+++ b/server/scheduler.c	2020-07-07 02:56:54.262738000 -0400
++++ b/server/scheduler.c	2020-07-16 01:43:58.806149401 -0400
 @@ -0,0 +1,204 @@
 +/*
 + * Scheduler priority management
@@ -475,7 +479,7 @@ diff -Npur a/server/scheduler.c b/server/scheduler.c
 +    } 
 +
 +    /* change the wineserver priority */
-+    if ((priority = get_priority( "WINE_RT_PRIO", min, max -1)) != -1)
++    if ((priority = get_priority( "WINE_RT_PRIO", min, max)) != -1)
 +    {       
 +        struct sched_param param;
 +        memset( &param, 0, sizeof(param) );
@@ -541,15 +545,15 @@ diff -Npur a/server/scheduler.c b/server/scheduler.c
 +    // this has not been an issue that i've even observed.
 +    
 +    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME) && (thread->priority != THREAD_PRIORITY_TIME_CRITICAL ||
-+         THREAD_PRIORITY_NORMAL || THREAD_PRIORITY_BELOW_NORMAL || THREAD_PRIORITY_IDLE ))
++        THREAD_PRIORITY_ABOVE_NORMAL || THREAD_PRIORITY_NORMAL || THREAD_PRIORITY_BELOW_NORMAL || THREAD_PRIORITY_IDLE ))
 +    {
-+        param.sched_priority = thread_base_priority -1;
++        param.sched_priority = thread_base_priority;
 +    }
 +    // Hardcoded to SCHED_FIFO just for TIME_CRITICAL threads.
 +    if ((thread->priority = PROCESS_PRIOCLASS_REALTIME && THREAD_PRIORITY_TIME_CRITICAL ))
 +    {
 +        wine_rt_policy = SCHED_FIFO;
-+        param.sched_priority = thread_base_priority -1;
++        param.sched_priority = thread_base_priority;
 +    } 
 +    else
 +    {
@@ -592,8 +596,8 @@ diff -Npur a/server/scheduler.c b/server/scheduler.c
 +
 +#endif
 diff -Npur a/server/thread.c b/server/thread.c
---- a/server/thread.c	2020-07-07 21:55:57.069550000 -0400
-+++ b/server/thread.c	2020-07-07 02:56:54.266071000 -0400
+--- a/server/thread.c	2020-07-16 01:33:47.480889000 -0400
++++ b/server/thread.c	2020-07-16 01:46:30.576551227 -0400
 @@ -38,6 +38,12 @@
  #ifdef HAVE_SCHED_H
  #include <sched.h>
@@ -726,7 +730,7 @@ diff -Npur a/server/thread.c b/server/thread.c
 +    // RT priority for threads must be below kernel-mode APC, TIME_CRITICAL threads and Wineserver.
 +    if ((base_priority = get_priority( "WINE_RT_PRIO", min, max )) != -1)
 +    {
-+        thread_base_priority = base_priority - 1;
++        thread_base_priority = base_priority;
 +    }
 +           
 +    // SCHED_FIFO/SCHED_RR:
@@ -812,12 +816,12 @@ diff -Npur a/server/thread.c b/server/thread.c
 +        case THREAD_PRIORITY_LOWEST: return 0;
 +        case THREAD_PRIORITY_BELOW_NORMAL: return 0;
 +        case THREAD_PRIORITY_NORMAL: return 0;
-+        case THREAD_PRIORITY_ABOVE_NORMAL: return -4 + thread_base_priority;
-+        case THREAD_PRIORITY_HIGHEST: return -3 + thread_base_priority;
-+        case 3: return -2 + thread_base_priority;
-+        case 4: return -2 + thread_base_priority;
-+        case 5: return -2 + thread_base_priority;
-+        case 6: return -2 + thread_base_priority;  
++        case THREAD_PRIORITY_ABOVE_NORMAL: return 0; // don't set RT or any lower case
++        case THREAD_PRIORITY_HIGHEST: return -6 + thread_base_priority;
++        case 3: return -4 + thread_base_priority;
++        case 4: return -4 + thread_base_priority;
++        case 5: return -4 + thread_base_priority;
++        case 6: return -4 + thread_base_priority;  
 +        case THREAD_PRIORITY_TIME_CRITICAL: return thread_base_priority;
 +        }
 +    }
@@ -869,7 +873,7 @@ diff -Npur a/server/thread.c b/server/thread.c
 +    // We only care about PROCESS_PRIOCLASS_REALTIME processes/threads.
 +    // Set the SCHED_FIFO/RR Priorities mapped from get_unix_priority()
 +    //
-+    // No setting anything below THREAD_PRIORITY_ABOVE_NORMAL as RT. 
++    // No setting anything below THREAD_PRIORITY_HIGHEST as RT. 
 +    //
 +    // NOTE: for other windows prioclasses, we set the priorities + niceness 
 +    // for their corresponding SCHED_OTHER threads.
@@ -917,15 +921,6 @@ diff -Npur a/server/thread.c b/server/thread.c
  /* set all information about a thread */
  static void set_thread_info( struct thread *thread,
                               const struct set_thread_info_request *req )
-@@ -653,7 +945,7 @@ static void set_thread_info( struct thre
-     {
-         int max = THREAD_PRIORITY_HIGHEST;
-         int min = THREAD_PRIORITY_LOWEST;
--        if (thread->process->priority == PROCESS_PRIOCLASS_REALTIME)
-+        if ((thread->process->priority = PROCESS_PRIOCLASS_REALTIME))
-         {
-             max = THREAD_PRIORITY_REALTIME_HIGHEST;
-             min = THREAD_PRIORITY_REALTIME_LOWEST;
 @@ -661,9 +953,13 @@ static void set_thread_info( struct thre
          if ((req->priority >= min && req->priority <= max) ||
              req->priority == THREAD_PRIORITY_IDLE ||
@@ -951,8 +946,8 @@ diff -Npur a/server/thread.c b/server/thread.c
      }
      debug_level = max( debug_level, req->debug_level );
 diff -Npur a/server/thread.h b/server/thread.h
---- a/server/thread.h	2020-07-07 21:55:57.069550000 -0400
-+++ b/server/thread.h	2020-07-07 02:56:54.259405000 -0400
+--- a/server/thread.h	2020-07-16 01:33:47.480889000 -0400
++++ b/server/thread.h	2020-07-16 01:36:25.677920000 -0400
 @@ -160,4 +160,9 @@ static inline thread_id_t get_thread_id(
  static inline int get_thread_unix_tid( struct thread *thread ) { return thread->unix_tid; }
  static inline timeout_t get_thread_creation_time( struct thread *thread ) { return thread->creation_time; }
