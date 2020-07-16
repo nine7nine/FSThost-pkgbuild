@@ -1,0 +1,13 @@
+ - above normal priority class is NOT RT in NSPA.
+
+--- a/fsthost.c.orig	2020-07-15 15:21:28.944310052 -0400
++++ b/fsthost.c	2020-07-15 15:16:21.105868013 -0400
+@@ -363,7 +363,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev
+ 
+ 	// Set Thread policy - usefull only with WineRT/LPA patch
+ 	//fst_set_thread_priority ( "Main", REALTIME_PRIORITY_CLASS, THREAD_PRIORITY_TIME_CRITICAL );
+-	fst_set_thread_priority ( "Main", ABOVE_NORMAL_PRIORITY_CLASS, THREAD_PRIORITY_ABOVE_NORMAL );
++	fst_set_thread_priority ( "Main", REALTIME_PRIORITY_CLASS, THREAD_PRIORITY_HIGHEST );
+ 
+ 	// Handling signals
+ 	struct sigaction sa;
