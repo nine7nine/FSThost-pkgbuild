@@ -1,0 +1,212 @@
+ - Kill allowing ABOVE_NORMAL to be RT in get_unix_priority() and scheduler.c: 
+   
+   sometimes GUI threads set this and it causes xruns in Jack. This may have 
+   been useful in the wine RT patch - in fact, it probably helped to avoid 
+   starving these threads / keep them responsive -- but that's irrelevant in 
+   Wine-NSPA (RT v2 patchwork), as I guard the main process (unix) threads 
+   themselves.
+   
+   Tested with KV Element + Reaper (Windows version) + NSPA RT v2 patchwork
+   enabled. This gets rid of GUI related xruns.
+   
+ - Go through the whole tree and fix SetThreadPriority() calls. Set to HIGHEST,
+   as that is now the minimum requirement for RT priority in Wine-NSPA.
+   
+   I imagine this may irritate a winelib VST host dev or two - if they rely
+   on using ABOVE_NORMAL for event threads, but something like that is dead easy
+   to fix and if they need to support staging RT patch vs. NSPA RT - they could
+   easily check the wine version - as the post fix will be Staging or NSPA.
+   
+   I also tested FSTHost with the needed change - works great, as epxected. As
+   an aside - I also wrote 2 patches for FSTHost to support Wine-NSPA properly.
+   
+   johnstonljordan <AT> gmail <DOT> com
+
+diff -pur a/dlls/dmime/performance.c b/dlls/dmime/performance.c
+--- a/dlls/dmime/performance.c	2020-07-12 17:55:08.611591998 -0400
++++ b/dlls/dmime/performance.c	2020-07-14 22:39:09.316365555 -0400
+@@ -191,7 +191,7 @@ static BOOL PostMessageToProcessMsgThrea
+     This->procThread = CreateThread(NULL, 0, ProcessMsgThread, This, 0, &This->procThreadId);
+     if (NULL == This->procThread) return FALSE;
+     SetPriorityClass(This->procThread, PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(This->procThread, THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(This->procThread, THREAD_PRIORITY_HIGHEST);
+     This->procThreadTicStarted = TRUE;
+     while(1) {
+       res = PostThreadMessageA(This->procThreadId, iMsg, 0, 0);
+diff -pur a/dlls/dsound/dsound.c b/dlls/dsound/dsound.c
+--- a/dlls/dsound/dsound.c	2020-07-12 17:55:08.611591998 -0400
++++ b/dlls/dsound/dsound.c	2020-07-14 22:39:09.316365555 -0400
+@@ -389,7 +389,7 @@ static HRESULT DirectSoundDevice_Initial
+ 
+     device->thread = CreateThread(0, 0, DSOUND_mixthread, device, 0, 0);
+     SetPriorityClass(device->thread, PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(device->thread, THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(device->thread, THREAD_PRIORITY_HIGHEST);
+ 
+     *ppDevice = device;
+     list_add_tail(&DSOUND_renderers, &device->entry);
+diff -pur a/dlls/mciavi32/mciavi.c b/dlls/mciavi32/mciavi.c
+--- a/dlls/mciavi32/mciavi.c	2020-07-12 17:55:08.612592006 -0400
++++ b/dlls/mciavi32/mciavi.c	2020-07-14 22:39:09.317365489 -0400
+@@ -534,7 +534,7 @@ static DWORD MCIAVI_mciPlay_async(WINE_M
+         return MCIAVI_mciPlay_thread(data);
+     }
+     SetPriorityClass(handle, PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(handle, THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(handle, THREAD_PRIORITY_HIGHEST);
+     CloseHandle(handle);
+     return 0;
+ }
+diff -pur a/dlls/mciseq/mcimidi.c b/dlls/mciseq/mcimidi.c
+--- a/dlls/mciseq/mcimidi.c	2020-07-12 17:55:08.612592006 -0400
++++ b/dlls/mciseq/mcimidi.c	2020-07-14 22:39:09.317365489 -0400
+@@ -1124,7 +1124,7 @@ static DWORD ensurePlayerThread(WINE_MCI
+ 	    dwRet = MCIERR_OUT_OF_MEMORY;
+ 	} else {
+ 	    SetPriorityClass(wmm->hThread, PROCESS_PRIOCLASS_REALTIME);
+-	    SetThreadPriority(wmm->hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++	    SetThreadPriority(wmm->hThread, THREAD_PRIORITY_HIGHEST);
+ 	    dwRet = 0;
+ 	}
+ 	if (dwRet)
+diff -pur a/dlls/mciwave/mciwave.c b/dlls/mciwave/mciwave.c
+--- a/dlls/mciwave/mciwave.c	2020-07-12 17:55:08.612592006 -0400
++++ b/dlls/mciwave/mciwave.c	2020-07-14 22:39:09.317365489 -0400
+@@ -129,7 +129,7 @@ static	DWORD MCI_SendCommandAsync(UINT w
+     }
+     
+     SetPriorityClass(handles[0], PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(handles[0], THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(handles[0], THREAD_PRIORITY_HIGHEST);
+     /* wait until either:
+      * - the thread has finished (handles[0], likely an error)
+      * - init phase of async command is done (handles[1])
+diff -pur a/dlls/mmsystem.dll16/mmsystem.c b/dlls/mmsystem.dll16/mmsystem.c
+--- a/dlls/mmsystem.dll16/mmsystem.c	2020-07-12 17:55:08.613592013 -0400
++++ b/dlls/mmsystem.dll16/mmsystem.c	2020-07-14 22:39:09.318365423 -0400
+@@ -1993,7 +1993,7 @@ LRESULT	WINAPI mmThreadCreate16(FARPROC1
+ 		ret = 2;
+ 	    } else {
+                 SetPriorityClass(lpMMThd->hThread, PROCESS_PRIOCLASS_REALTIME);
+-                SetThreadPriority(lpMMThd->hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++               SetThreadPriority(lpMMThd->hThread, THREAD_PRIORITY_HIGHEST);
+ 		TRACE("Got a nice thread hndl=%p id=0x%08x\n", lpMMThd->hThread, lpMMThd->dwThreadID);
+ 		ret = 0;
+ 	    }
+diff -pur a/dlls/strmbase/outputqueue.c b/dlls/strmbase/outputqueue.c
+--- a/dlls/strmbase/outputqueue.c	2020-07-12 17:55:08.613592013 -0400
++++ b/dlls/strmbase/outputqueue.c	2020-07-14 22:39:09.318365423 -0400
+@@ -89,7 +89,7 @@ HRESULT WINAPI OutputQueue_Construct(str
+         if (This->hThread)
+         {
+             SetPriorityClass(This->hThread, PROCESS_PRIOCLASS_REALTIME);
+-            SetThreadPriority(This->hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++            SetThreadPriority(This->hThread, THREAD_PRIORITY_HIGHEST);
+             This->hProcessQueue = CreateEventW(NULL, 0, 0, NULL);
+         }
+     }
+diff -pur a/dlls/winealsa.drv/midi.c b/dlls/winealsa.drv/midi.c
+--- a/dlls/winealsa.drv/midi.c	2020-07-12 17:55:08.613592013 -0400
++++ b/dlls/winealsa.drv/midi.c	2020-07-14 22:39:09.318365423 -0400
+@@ -537,7 +537,7 @@ static DWORD midOpen(WORD wDevID, LPMIDI
+ 	}
+ 	
+         SetPriorityClass(hThread, PROCESS_PRIOCLASS_REALTIME);
+-        SetThreadPriority(hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++       SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
+ 	TRACE("Created thread for midi-in\n");
+     }
+ 
+diff -pur a/dlls/wineoss.drv/midi.c b/dlls/wineoss.drv/midi.c
+--- a/dlls/wineoss.drv/midi.c	2020-07-12 17:55:08.613592013 -0400
++++ b/dlls/wineoss.drv/midi.c	2020-07-14 22:39:09.318365423 -0400
+@@ -754,7 +754,7 @@ static DWORD midOpen(WORD wDevID, LPMIDI
+ 	    return MMSYSERR_ERROR;
+ 	}
+         SetPriorityClass(hthread, PROCESS_PRIOCLASS_REALTIME);
+-        SetThreadPriority(hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++       SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
+ 	TRACE("Created thread for midi-in\n");
+     }
+ 
+diff -pur a/dlls/winepulse.drv/mmdevdrv.c b/dlls/winepulse.drv/mmdevdrv.c
+--- a/dlls/winepulse.drv/mmdevdrv.c	2020-07-12 17:55:08.614592021 -0400
++++ b/dlls/winepulse.drv/mmdevdrv.c	2020-07-14 22:39:09.324365024 -0400
+@@ -678,7 +678,7 @@ static HRESULT pulse_connect(void)
+             return E_FAIL;
+         }
+         SetPriorityClass(pulse_thread, PROCESS_PRIOCLASS_REALTIME);
+-        SetThreadPriority(pulse_thread, THREAD_PRIORITY_ABOVE_NORMAL);
++        SetThreadPriority(pulse_thread, THREAD_PRIORITY_HIGHEST);
+         pthread_cond_wait(&pulse_cond, &pulse_lock);
+     }
+ 
+diff -pur a/dlls/winmm/playsound.c b/dlls/winmm/playsound.c
+--- a/dlls/winmm/playsound.c	2020-07-12 17:55:08.615592029 -0400
++++ b/dlls/winmm/playsound.c	2020-07-14 22:39:09.324365024 -0400
+@@ -535,7 +535,7 @@ static BOOL MULTIMEDIA_PlaySound(const v
+         wps->bLoop = (fdwSound & SND_LOOP) != 0;
+         if ((handle = CreateThread(NULL, 0, proc_PlaySound, wps, 0, NULL)) != 0) {
+             SetPriorityClass(handle, PROCESS_PRIOCLASS_REALTIME);
+-            SetThreadPriority(handle, THREAD_PRIORITY_ABOVE_NORMAL);
++            SetThreadPriority(handle, THREAD_PRIORITY_HIGHEST);
+             CloseHandle(handle);
+             return TRUE;
+         }
+diff -pur a/dlls/winmm/time.c b/dlls/winmm/time.c
+--- a/dlls/winmm/time.c	2020-07-12 17:55:08.615592029 -0400
++++ b/dlls/winmm/time.c	2020-07-14 22:39:09.324365024 -0400
+@@ -221,7 +221,7 @@ static void TIME_MMTimeStart(void)
+     GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, (LPCWSTR)TIME_MMSysTimeThread, &mod);
+     TIME_hMMTimer = CreateThread(NULL, 0, TIME_MMSysTimeThread, mod, 0, NULL);
+     SetPriorityClass(TIME_hMMTimer, PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(TIME_hMMTimer, THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(TIME_hMMTimer, THREAD_PRIORITY_HIGHEST);
+ }
+ 
+ /**************************************************************************
+diff -pur a/dlls/winmm/winmm.c b/dlls/winmm/winmm.c
+--- a/dlls/winmm/winmm.c	2020-07-12 17:55:08.615592029 -0400
++++ b/dlls/winmm/winmm.c	2020-07-14 22:39:09.325364958 -0400
+@@ -1424,7 +1424,7 @@ MMRESULT WINAPI midiStreamOpen(HMIDISTRM
+ 	return MMSYSERR_NOMEM;
+     }
+     SetPriorityClass(lpMidiStrm->hThread, PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(lpMidiStrm->hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(lpMidiStrm->hThread, THREAD_PRIORITY_HIGHEST);
+ 
+     /* wait for thread to have started, and for its queue to be created */
+     WaitForSingleObject(lpMidiStrm->hEvent, INFINITE);
+@@ -1715,7 +1715,7 @@ UINT     WINAPI mmTaskCreate(LPTASKCALLB
+         return TASKERR_OUTOFMEMORY;
+     }
+     SetPriorityClass(hThread, PROCESS_PRIOCLASS_REALTIME);
+-    SetThreadPriority(hThread, THREAD_PRIORITY_ABOVE_NORMAL);
++    SetThreadPriority(hThread, THREAD_PRIORITY_HIGHEST);
+     if (ph) *ph = hEvent;
+     CloseHandle(hThread);
+     return 0;
+--- a/server/scheduler.c.orig	2020-07-15 21:32:24.490043126 -0400
++++ b/server/scheduler.c	2020-07-15 21:31:32.400497578 -0400
+@@ -152,7 +152,7 @@ void set_scheduler_priority( struct thre
+     // this has not been an issue that i've even observed.
+     
+     if ((thread->priority = PROCESS_PRIOCLASS_REALTIME) && (thread->priority != THREAD_PRIORITY_TIME_CRITICAL ||
+-         THREAD_PRIORITY_NORMAL || THREAD_PRIORITY_BELOW_NORMAL || THREAD_PRIORITY_IDLE ))
++         THREAD_PRIORITY_ABOVE_NORMAL || THREAD_PRIORITY_NORMAL || THREAD_PRIORITY_BELOW_NORMAL || THREAD_PRIORITY_IDLE ))
+     {
+         param.sched_priority = thread_base_priority;
+     }
+diff -pur a/server/thread.c b/server/thread.c
+--- a/server/thread.c	2020-07-12 17:55:08.618592052 -0400
++++ b/server/thread.c	2020-07-15 00:58:37.926118186 -0400
+@@ -835,7 +835,7 @@ static int get_unix_priority( int priori
+         case THREAD_PRIORITY_LOWEST: return 0;
+         case THREAD_PRIORITY_BELOW_NORMAL: return 0;
+         case THREAD_PRIORITY_NORMAL: return 0;
+-        case THREAD_PRIORITY_ABOVE_NORMAL: return -8 + thread_base_priority;
++        case THREAD_PRIORITY_ABOVE_NORMAL: return 0; // don't set RT or any lower case
+         case THREAD_PRIORITY_HIGHEST: return -6 + thread_base_priority;
+         case 3: return -4 + thread_base_priority;
+         case 4: return -4 + thread_base_priority;

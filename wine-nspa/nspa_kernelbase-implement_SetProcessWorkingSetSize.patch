@@ -9,9 +9,29 @@
    checked to ensure they were actually being changed.
    
  NOTE: used FIXME to return the values. (because i'm lazy! lol).
+ 
+ NOTE2: remove makedep check . I'll ask about this on wine-devel - but for now,
+        this works.
 
  johnstonljordan <AT> gmail <DOT> com
 
+--- a/tools/makedep.c	2020-07-12 17:55:03.822555007 -0400
++++ b/tools/makedep.c	2020-07-14 22:43:15.830115635 -0400
+@@ -1557,14 +1557,6 @@ static struct file *open_include_file( c
+         }
+     }
+ 
+-    if (pFile->type == INCL_SYSTEM && pFile->use_msvcrt)
+-    {
+-        if (!strcmp( pFile->name, "stdarg.h" )) return NULL;
+-        fprintf( stderr, "%s:%d: error: system header %s cannot be used with msvcrt\n",
+-                 pFile->included_by->file->name, pFile->included_line, pFile->name );
+-        exit(1);
+-    }
+-
+     if (pFile->type == INCL_SYSTEM) return NULL;  /* ignore system files we cannot find */
+ 
+     /* try in src file directory */
 --- a/dlls/kernelbase/process.c.orig	2020-07-11 21:36:02.380736004 -0400
 +++ b/dlls/kernelbase/process.c	2020-07-11 21:27:14.566272636 -0400
 @@ -20,6 +20,11 @@
