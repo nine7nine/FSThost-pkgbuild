@@ -35,7 +35,6 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         0001-wineserver-Draft-to-implement-priority-levels-throug.patch
         ntdll-Store_fsync_APC_futex_in_the_thread_data_directly.patch
         fsync_ntdll_file_flush.patch
-        nspa-muse_pipesync_partial_merge1.patch
         nspa_ntdll_tweak-hash_short_file_name.patch
         nspa-setupapi_fix_handling_arch-specific_SourceDisks_inf_sections.patch
         nspa_wine-nspa_version_string.patch
@@ -43,7 +42,6 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa_wine-nspa_RT_implementation.patch
         nspa_wine-nspa-debug_threadInfo.patch
         nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch
-        nspa_wine-nspa-RT_kill_ABOVE_NORMAL_for_rt.patch
         nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
         nspa_Fix_order_to_enable_application_window.patch         
         )
@@ -68,7 +66,6 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             '9d17fa1b1958b6ae2e849582404f6b97e84ed7b6e52c83aa2fae349427edbc542aac021d646606b5162935049273afbacb7d9191df5825ce9359e3b8d70db965'
             'b0a2c201545698f4f326f3c0aa685b6b52a424f27e84158557977a7eeb5530f4a633d7691accd506f20a9dcfb4392888791791238fb2df915baf476acf14d497'
             'a0a8386786c1271688d1680d1f50882321506547e4c3cebcda984b49cd6d0fd01e8af4a4d7a39a0c25ac51e5759d60acf643ec3f6ea95d7b1019ceac48d640ea'
-            'f95b7aa2f088cf57b719b67a30456b21ce8afb67a52f9a4244bccb103ce73cf7bc1f0568aa5a7d9e457e75d429ca6685ea842372c2710949ecbf5dbff91b8991'
             '0634e5019dd9b89a41d33b7b560aa2724c8f497119737b08876677ef0dd0106bc45252b220b0a30743d76023b1ceedcced4c6fde59ae37864b5613e6c642f423'
             '2a7e80baa6f6f69a9567d853e58a690ffaeac255e6b7386721df43275b2be597337d891488effc8cfe9fc5d7cf6087118099ec45b74402b8a413bc28ab8e76d1'
             'e02b6278d29584b86fbf8829202b3a66603be063da956723268ea915dda3f6f5bce9dc2dbea7424b73d504f8f3aa564237e55072c3285ef94bc7edd336f6ba00'
@@ -76,7 +73,6 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'd9f850569326c701585bfc1a8dbe1e2d2299185db2d8e030487295994d8823925ecf3385d4c3f24f16a4b4f8ed091030e31afb51050398bb635354dc64cead56'
             'dae8a3d1d7f7045dc28404f109999e5ffcbe05786d7522d08c0f98f39ee502e467b46b25f9f7aa48a8c75ad77a2d660837785dd6850ff0865f984f43df5a6fa1'
             '5a47da088201dc80da71690cda04be284936fabd921597299ccfa87b3724f40689c5cfff635449f6a7cf3072a21e86833e07a62f027e8c5ffc6a60025d9f6900'
-            '03830aaa809b3e95ddd4cb5128bedd47ee5423d31ab64db3937ba1a2ad05a7b0fe982db2c757dae001c74c90e71aaa004de23649a85f3ca98788272c4c400d41'
             '24e14e7d2c49a4bc5eb695ab7e5b67b575f50c5a56d6db23e6c8afe62918da94d59defe9a2ee2abb8cf794eb64fa0e8768f45df6cbd14067530330c38169110f'
             'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
