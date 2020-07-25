@@ -3,10 +3,10 @@
 
 --- a/Makefile.orig	2020-07-15 15:33:06.172982452 -0400
 +++ b/Makefile	2020-07-15 15:32:54.929859424 -0400
-@@ -182,14 +182,13 @@ define compile
+@@ -178,11 +178,10 @@ fsthost%: $(C_SRCS:.c=_%.o)
  	sed -i -e 's|-n "$$appdir"|-r "$$appdir/$$appname"|' \
  		-e 's|.exe.so|.so|' \
- 		-e '3i export WINEPATH="$(LIB$(1)_INST_PATH)"' \
+ 		-e '3i export WINEPATH="$(LIBDIR_WINE)"' \
 -		-e '3i export WINE_SRV_RT=$${WINE_SRV_RT:-15}' \
 -		-e '3i export WINE_RT=$${WINE_RT:-10}' \
 -		-e '3i export STAGING_RT_PRIORITY_SERVER=$${STAGING_RT_PRIORITY_SERVER:-15}' \
@@ -21,7 +21,3 @@
 -		-e '3i export L_RT_PRIO=$${L_RT_PRIO:-10}' $@
 +		-e '3i export WINE_RT_POLICY="$${WINE_RT_POLICY:-RR}"' \
 +		-e '3i export WINE_RT_PRIO=$${WINE_RT_PRIO=:-1}' $@
- endef
- 
- fsthost%: $(C_SRCS:.c=_%.o) fsthost_list
-

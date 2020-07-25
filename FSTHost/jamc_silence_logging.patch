@@ -1,0 +1,19 @@
+--- a/jfst/jamc.c.orig	2020-07-23 02:30:23.590207007 -0400
++++ b/jfst/jamc.c	2020-07-23 02:29:56.906209793 -0400
+@@ -117,12 +117,12 @@ queue_midi_message(JFST* jfst, struct Mi
+ 
+ 	jack_ringbuffer_t* ringbuffer = jfst->ringbuffer;
+ 	if ( jack_ringbuffer_write_space(ringbuffer) < size ) {
+-		log_error("Not enough space in the ringbuffer, NOTE LOST.");
++		//log_error("Not enough space in the ringbuffer, NOTE LOST.");
+ 		return;
+ 	}
+ 
+-	size_t written = jack_ringbuffer_write(ringbuffer, (char*) mm, size);
+-	if (written != size) log_error("jack_ringbuffer_write failed, NOTE LOST.");
++	//size_t written = jack_ringbuffer_write(ringbuffer, (char*) mm, size);
++	//if (written != size) log_error("jack_ringbuffer_write failed, NOTE LOST.");
+ }
+ 
+ static bool jfstamc_process_events ( AMC* amc, VstEvents* events ) {
+

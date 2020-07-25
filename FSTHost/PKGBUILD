@@ -1,9 +1,9 @@
 # Maintainer: Jordan Johnston <johnstonljordan at gmail dot com>
 # Contributor: speps <speps at aur dot archlinux dot org>
 
-pkgname=fsthost
-pkgver=1.6.2
-pkgrel=3
+pkgname=FSTHost
+pkgver=1.6.3
+pkgrel=1
 pkgdesc='A linux VST host using winelib'
 arch=('i686' 'x86_64')
 url='http://sourceforge.net/projects/fsthost/'
@@ -22,27 +22,30 @@ fi
 
 depends+=('wine' 'perl-xml-libxml')
 
-source=("http://downloads.sourceforge.net/project/$pkgname/$pkgname-$pkgver.tar.xz"
+source=("git+https://github.com/nine7nine/FSTHost.git"
         win32_prio_corrected.patch
+        jamc_silence_logging.patch
         wine-NSPA_env.patch)
-md5sums=('0769970ea13f3e6b860944db3803d339'
-         '6c35534fbd24bde575060440e2f00e65'
-         '4fc6d9e27dfbd8d40f420f0bd2fd51d9')
+md5sums=('SKIP'
+         'f62350e9032c39c952ba036f690c43ec'
+         '1e5ca84ece8bc67ed0ddd522cf79e4a5'
+         'e5bf8bf56a4fdc9b27521b473e23c7da')
 
 build() {
-  cd $pkgname-$pkgver
+  cd $pkgname
   
   patch -Np1 -i $srcdir/win32_prio_corrected.patch
   patch -Np1 -i $srcdir/wine-NSPA_env.patch
-    
+  patch -Np1 -i $srcdir/jamc_silence_logging.patch
+     
   make LIB32_INST_PATH=/usr/lib$_arch \
        LIB64_INST_PATH=/usr/lib \
        LASH_EXISTS='no' \
-       GTK=${_GTK}
+       GTK=0
 }
 
 package() {
-  cd $pkgname-$pkgver
+  cd $pkgname
   make LIB32_INST_PATH=/usr/lib$_arch \
        LIB64_INST_PATH=/usr/lib \
        MANDIR=/usr/share/man/man1 \
