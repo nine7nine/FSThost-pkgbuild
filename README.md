@@ -22,7 +22,6 @@ for futex-multiple-wait for wine-nspa.
 - contains futex-multiple-wait patch(actually, 2 versions).
 - some of intel's patchwork. 
 - gcc optimization
-- the percpu-rwsem rewrite (lives in -rt 5.6.x, as well).
 - swait stuff from -rt. (not really -rt specifc though. in either case.).
 - a couple fixes for pesky issues (for me).
 
@@ -37,8 +36,8 @@ builds; as you will need kernel support. so the futex-multiple-wait support is a
 this kernel runs very well, for my purposes.
 
 i also only 'loosely' follow Arch kernel updates. I don't need to chase updates and i need a consistent
-system for testing changes - rolling can introduce regressions or other issues, so I'm sticking with 
-5.6.x for a short-while, while i hack on wine a bit more. but I will update, obviously. (linux 5.8?).
+system for testing changes - rolling can introduce regressions or other issues. So i tend to bump the kernel
+packages as i see fit / after some testing.
 _____
 # Wine-NSPA; wine geared for proaudio. (*WIP*/alpha)
 
@@ -82,11 +81,21 @@ far better prioritization of threads.
   * WINE_RT_PRIO=75
   
 Both of these env variables MUST be set. 
+
+IMPORTANT NOTE: Wine-NSPA v5.9.18+ (v2.0 RT support)
+
+Below isn't entirely accurate. In 5.9.18+, currently I'm forcing the policy/priority of some the high  
+priority RT threads. I'm leaving below intact, as it's mostly relevant. just some of the details about what's
+happeneing in Wine are slightly different. (below is < 5.9.17 implementation)... but I will likely bring
+back switching RT policy, for select threads, once i get some other bits implemented and can allow it again.
+
+in NSPA RT v2.0, even if you set RR it'll be FF for now. Other than that, basic usage is the same.  
+
 ____
 WINE-NSPA's THREAD PRIORITIES & DESIGN:
   
 Unlike the wine-staging RT patch, I don't allow setting the wineserver thread priority (independently). I'm doing 
-this  for good reason. more on that below... Instead, we want this priority/thread placement;
+this for good reason. more on that below... Instead, we want this priority/thread placement;
   
  - MAX PRIORITY = FF
  
@@ -183,28 +192,32 @@ ____
   Building Jack2 from source is relatively easy, as well.
     
 ____
-OTHER ENVIRONMMENT VARIABLES / FEATURES:
+OTHER FEATURES:
 
 Wine-NSPA contains some other stuff, as well. 
   
-I disable the update window, by default. It can be enabled with; (yup, env variables)
+  - I disable the wine's update window completely. 
   
-  * ENABLE_UPDATE_WINDOW=1
-  
-  NOTE: You will need to enable this to create a wine-prefix. It will fail to create a prefix, if
-        this env variable is set =0. Currently, =0 isn't handled gracefully; but I'll be revising the patch 
-        to not even attempt to create a wine-prefix if =0 is set.
-  
-I also disable the crash dialog... In both cases, I don't like just find them annoying and disruptive. This
-also tends to make things feel more integrated, as you don't get random windows dialogs opening, say, after
-you've updated wine-nspa, then launch a DAW.
+  - I also disable the crash dialog... In both cases, I don't like just find them annoying and disruptive. This
+    also tends to make things feel more integrated, as you don't get random windows dialogs opening, say, after
+    you've updated wine-nspa, then launch a DAW.
 
-i will also be adding an xembed hack to allow resizing support. same goes with adding suuport for allowing 
-32-bit applications to use large address spaces (cross the 4GB RAM boundary). 
+  - I've added LFH support (Low Fragmentation Hep) with a Thread Local Implementation (similar kind of thing to tcmalloc). 
+    This is a bit experimental and is missing a few bits, from what i gather. However, I haven't noticed any regressions
+    and with what testing i have done is does seem to be beneficial. 
+    
+    this is enabled globally, but can be disabled with;
+    
+    - export WINELFH=0
+    
+  - fixes for NI Access / newer NI (sub)installers, one-offs and hacks for different programs. 
+
+Another feature on the horizon will be trying to filter RT threads better, as well as moving certain threads completely
+out of wineserver (this will take a bit to sort out).    
 
 i'm also planning to add Dtrace support && looking into the PE tracing code that's floating around for 
 the linux kernel... i have patches for Dtrace for wine. Oracle has the linux support. the PE stuff, i haven't
-delved into yet; but i'm.aware that it exists... some of this stuff is beyond my skill level to fully utilise,
+delved into yet; but i'm aware that it exists... some of this stuff is beyond my skill level to fully utilise,
 but it may come in handy, nonetheless.
 ____
 Finally, here is a full example of how i setup my wine env variables;
@@ -220,36 +233,46 @@ Finally, here is a full example of how i setup my wine env variables;
  
  - export WINEDEBUG=-all
 
-these could be put into .bashrc, or made into a shell script - for launching a specific app, etc. 
+this could be put into made into a shell script - for launching a specific app, etc. 
 
 If I also happen to be using different wine prefixes;
 
  - export WINEPREFIX=/path/to/wineprefix
+ 
+___
+WARNING/IMPORTANT:
+
+I currently do not support Ilok Manager, as it will cause issues with threading. In fact, it's best to
+avoid applications that like to try and add their own services and/or (unsupported) drivers... They tend
+to cause problems and generally stuff like that also tends to have problems in Wine anyway.
+
+Another important thing; Wine (any version) will cause some xruns, usually on app launch - sometimes
+with heavy disk i/o. (loading large sample libraries, some session or project with a bunch of VSTs). This 
+is pretty common, I'm not sure of the best solution to this - it's possible playing some games with
+thread prioritization could reduce this, but it's tricky to figure out.
+
+I've limited the scope of what threads are allowed to be RT, to help minimize xruns and other undesired
+behaviour. It's a tricky balance... Eventually, when i get the next iteration of RT support implemented, I
+should be able to support things like iLok Manager and other services that may cause issues now. 
+
+All in good time.
+
 ____
 OTHER NOTES/THOUGHTS:  
 
 This build should make winelib / bridge and VST people happy. Not sure about the 
-wine/non-native DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor.
-Unfortunately, non-native DAWs are more complex and the issues are harder to solve.
+wine/non-native DAW scenario, beyond testing thread priorities in Reaper + running Kontakt/Reaktor. 
+Non-native DAWs are more complex and the issues are harder to solve. That said, Reaper actually runs 
+very well (has for years in wine), as do some other VST hosts.
   
-We can't handle wait-on-multiple-objects in wine, due to wineserver 
-being single-threaded and a limitation of hybrid synchronization. It's possible
-a DAW in wine might might run better - it's possible it's performance may be hurt, or there could be
-threading issues... I'm more interested in improving things for the VST bridge people, and individuals
-like myself - who are playing live (with many heavy VSTi's at once, often layered).
+Unfortunately, one challenge with wine is that we can't handle wait-on-multiple-objects in wine, due to wineserver 
+being single-threaded and a limitation of hybrid synchronization. It's possible a DAW in wine might might run better, 
+it's possible it's performance may be hurt, or there could be threading issues...
 
-Wine-NSPA certainly improves things for me, in my use (no question. it's proving to work well). However, 
-ideally we want further tweaks and optimizations. For example, the legacy set-realtime-without-wineserver.patch 
-could to be ported  or re-implemented using futex-multiple-wait / fsync. The arguably most important detail 
-in that patch is how it was not only able to set realtime priorites - but actually move threads completely 
-out of wineserver, meaning they did not wait on user threads. These threads were tagged/hooked in 
-SetThreadPriority() (WinAPI), then caught in ntdll and handled differently. 
-
-(just look at the functions in the patch's ntdll and kernel32 parts).
-  
-I'm probably not smart enough to re-implement this, but I'm stubborn -- so we shall see. lol regardless, I think
-that I am correct that a re-implementation of this patch, or some optimization like it; would be killer -- as 
-we could hook these threads, which would get rid of a lot of traffic in wineserver...
+Wine-NSPA certainly improves things for me, in my use (no question. it's proving to work well - especially as
+I'm progressing with my patchwork / features). But i should also note, all of my patchwork is subject to
+change from build to build. Sometimes, i may have regressions - as I'm implementating different things, or
+trying different schemes - especially with the RT support. (which is definitely WIP).
 
 ----
 Sometime in the not-so-distant-future, I will also be releases a tool called "Winebox". It's a set of
