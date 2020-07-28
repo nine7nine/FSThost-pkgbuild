@@ -95,20 +95,19 @@ index c29976eca4a8..ae734a37d33a 100644
 --- a/arch/x86/entry/syscalls/syscall_64.tbl
 +++ b/arch/x86/entry/syscalls/syscall_64.tbl
 @@ -210,7 +210,7 @@
- 199	common	fremovexattr		__x64_sys_fremovexattr
- 200	common	tkill			__x64_sys_tkill
- 201	common	time			__x64_sys_time
--202	common	futex			__x64_sys_futex
-+202	64	futex			__x64_sys_futex
- 203	common	sched_setaffinity	__x64_sys_sched_setaffinity
- 204	common	sched_getaffinity	__x64_sys_sched_getaffinity
+ 199	common	fremovexattr		sys_fremovexattr
+ 200	common	tkill			sys_tkill
+ 201	common	time			sys_time
+-202	common	futex			sys_futex
++202	64	futex			sys_futex
+ 203	common	sched_setaffinity	sys_sched_setaffinity
+ 204	common	sched_getaffinity	sys_sched_getaffinity
  205	64	set_thread_area
-@@ -400,3 +400,4 @@
- 545	x32	execveat		__x32_compat_sys_execveat/ptregs
- 546	x32	preadv2			__x32_compat_sys_preadv64v2
- 547	x32	pwritev2		__x32_compat_sys_pwritev64v2
+@@ -402,3 +402,4 @@
+ 545	x32	execveat		compat_sys_execveat
+ 546	x32	preadv2			compat_sys_preadv64v2
+ 547	x32	pwritev2		compat_sys_pwritev64v2
 +548	x32	futex			__x32_compat_sys_futex
-\ No newline at end of file
 diff --git a/include/linux/compat.h b/include/linux/compat.h
 index 68f79d855c3d..3f1cf5d74610 100644
 --- a/include/linux/compat.h

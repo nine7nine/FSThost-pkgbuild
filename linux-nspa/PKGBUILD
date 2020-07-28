@@ -2,7 +2,7 @@
 # Contributor: Jan Alexander Steffens (heftig) <jan.steffens@gmail.com>
 
 pkgbase=linux-nspa
-pkgver=5.6.15.arch1
+pkgver=5.7.10.arch1
 pkgrel=1
 pkgdesc='Linux'
 _srctag=v${pkgver%.*}-${pkgver##*.}
@@ -10,7 +10,7 @@ url="https://git.archlinux.org/linux.git/log/?h=$_srctag"
 arch=(x86_64)
 license=(GPL2)
 makedepends=(
-  bc kmod libelf
+  bc kmod libelf pahole
   xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick
   git
 )
@@ -23,7 +23,7 @@ source=(
         # [Fixes/misc] 
         pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch
         designware-i2c_IRQF_NO_THREAD.patch
-        nvme-silence_irqdisable_suspend_warnings.patch
+        pinctrl-amd-Honor-IRQ-trigger-type-requested-by-the-caller.patch
         # [CLear Linux]
         x86-rdrand_do_sanity_check_on_boot.patch
         0108-smpboot-reuse-timer-calibration.patch
@@ -36,15 +36,7 @@ source=(
         futex-wait-multiple-5.2.1.patch
         futex-wait-multiple-5.5-deadlock_fix.patch
         # [Graysky, linux-ck] gcc optimization patch
-        enable_additional_cpu_optimizations_for_gcc_v9.1+_kernel_v4.13+.patch
-        # PeterZ percpu-rwsem v2
-        0001-locking-percpu-rwsem-lockdep-Make-percpu-rwsem-use-i.patch
-        0002-locking-percpu-rwsem-Convert-to-bool.patch
-        0003-locking-percpu-rwsem-Move-__this_cpu_inc-into-the-sl.patch
-        0004-locking-percpu-rwsem-Extract-__percpu_down_read_tryl.patch
-        0005-locking-percpu-rwsem-Remove-the-embedded-rwsem.patch
-        0006-locking-percpu-rwsem-Fold-__percpu_up_read.patch
-        0007-locking-percpu-rwsem-Add-might_sleep-for-writer-lock.patch
+        enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.7+.patch
         # swait from RT, destined for mainline
         0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch
         0002-sched-swait-Add-swait_event_lock_irq.patch
@@ -57,11 +49,11 @@ validpgpkeys=(
   'A2FF3A36AAA56654109064AB19802F8B0D70FC30'  # Jan Alexander Steffens (heftig)
 )
 sha256sums=('SKIP'
-            'd7e0e4ccae121db54807d48a5bff4c663c6527a53aa3fc1466a98db486d9f74d'
+            'b75d9092846b6abcf52ca99747edfcfdcd61b9533f1bd82430b0534e018fb61b'
             '8cb21e0b3411327b627a9dd15b8eb773295a0d2782b1a41b2a8839d1b2f5778c'
             '1e5891100e91830f3cd89ddc88b0373d0d617a4aca2ff214aaabc517d08b633d'
             '10fdab4c1deaa6938be3acb992eac686b716ba08e40bff9b838f439494aa49a0'
-            'f52f543deeef2534ba44d437820c535ac7235eaa8fd1d37e9da817866f5c81f9'
+            '417c64d0e74e25c8ee63b80581de87a09c3c19b5db03accc6c07c16e49950138'
             '3abe6ced007b908a0755f71804fb760eba781f1120241394bcffe505469f7cbb'
             'e8ec1aa0e67e37b377e5a9d48416ec6e43d90e7121c29ba012096479c66f4880'
             'c2c89d27c260497f2d31ca6dd60821c19cc3f283aaa8903dd19ace78c2011365'
@@ -71,15 +63,8 @@ sha256sums=('SKIP'
             'c1445df6554b80b7b681d4b52ff62527f36b52b1b7d9b59cb68caec967128ced'
             'fbb5cf8e3e44477e06894a8e4e42e44a83682556cbc05bc47334941cbd5fb107'
             'cbb164c3bc0550018924f75713a76abdc51aa2c3d1b37c12414b80ccb4b96662'
-            '89f715d6d4764acf0d41b0c596fe7187bf08e5fd2870dc118ba6d33be93249fc'
-            '61ada832cd61aec423fb12451b63928132ba15e8ee136a96dc733b02ee22a1ba'
-            '0f5260e3209a09e8ef12cf520f8cfb6fab97a8a2a1031ada64b95ab8f0ded9fd'
-            '55d58ee931c9b241fcd74fe089ddb35cbf62bc73c30fcdfd089f3141a3e81980'
-            'f85d75fccd5090f855d253ade673b4bdff56eac41cef012d4a86eb10f86191a3'
-            '52c1f7a3dd80d1de3b3a7f27b1e0b9f514e9165a3a8d6a52eed6856cae8c7457'
-            'f1f990020703cd3ca95b311736b39a3253b68bbfb344c2fada4780eeb4d0e961'
-            'ff41a93df67dc9d0354eb33eb27cce285c991bca64e91d9a1d77d22c0ed46622'
-            'd7a61fff0907f2bb015252daaeb921b37787edae394c1f89328dbec347b46d8a'
+            '9fed23ccdd6e3d0df128cba1e3d3b0cb627069581f5b0802dd1eee65782b49e3'
+            '1f56a2466bd9b4477925682d8f944fabb38727140e246733214fe50aa326fc47'
             '650b37be83aae69bc29af8e51757341ec21c550bcffa92af304ba95b4b8a8821'
             'aef1571a6ba39f21ed33b1adfc58a1e431dfa6b38b20b061d8398238992449b7'
             'a6f4ff72b5ba7a57cd5673424deb0bd137fa22b2523f7ac86abb86b435cda8fc'
@@ -111,9 +96,9 @@ prepare() {
 
   msg2 "designware-i2c_IRQF_NO_THREAD.patch..."
   patch -Np1 -i ../"designware-i2c_IRQF_NO_THREAD.patch"
-
-  msg2 "nvme-silence_irqdisable_suspend_warnings.patch..."
-  patch -Np1 -i ../"nvme-silence_irqdisable_suspend_warnings.patch"
+  
+  msg2 "pinctrl-amd-Honor-IRQ-trigger-type-requested-by-the-caller.patch"
+  patch -Np1 -i ../"pinctrl-amd-Honor-IRQ-trigger-type-requested-by-the-caller.patch"
 
 ##[Clear Linux]
 
@@ -150,32 +135,9 @@ prepare() {
 
   # https://github.com/graysky2/kernel_gcc_patch
 
-  msg2 "enable_additional_cpu_optimizations_for_gcc_v9.1+_kernel_v4.13+.patch ..."
-  patch -Np1 -i ../"enable_additional_cpu_optimizations_for_gcc_v9.1+_kernel_v4.13+.patch"
+  msg2 "enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.7+.patch ..."
+  patch -Np1 -i ../"enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.7+.patch"
   
-##[PeterZ's percpu-rwsem rewrite]  
-
-  msg2 "0001-locking-percpu-rwsem-lockdep-Make-percpu-rwsem-use-i.patch"
-  patch -Np1 -i ../"0001-locking-percpu-rwsem-lockdep-Make-percpu-rwsem-use-i.patch"
-
-  msg2 "0002-locking-percpu-rwsem-Convert-to-bool.patch"
-  patch -Np1 -i ../"0002-locking-percpu-rwsem-Convert-to-bool.patch"
-
-  msg2 "0003-locking-percpu-rwsem-Move-__this_cpu_inc-into-the-sl.patch"
-  patch -Np1 -i ../"0003-locking-percpu-rwsem-Move-__this_cpu_inc-into-the-sl.patch"
-
-  msg2 "0004-locking-percpu-rwsem-Extract-__percpu_down_read_tryl.patch"
-  patch -Np1 -i ../"0004-locking-percpu-rwsem-Extract-__percpu_down_read_tryl.patch"
-
-  msg2 "0005-locking-percpu-rwsem-Remove-the-embedded-rwsem.patch"
-  patch -Np1 -i ../"0005-locking-percpu-rwsem-Remove-the-embedded-rwsem.patch"
-
-  msg2 "0006-locking-percpu-rwsem-Fold-__percpu_up_read.patch"
-  patch -Np1 -i ../"0006-locking-percpu-rwsem-Fold-__percpu_up_read.patch"
-
-  msg2 "0007-locking-percpu-rwsem-Add-might_sleep-for-writer-lock.patch"
-  patch -Np1 -i ../"0007-locking-percpu-rwsem-Add-might_sleep-for-writer-lock.patch"
-
 ##[Swait related patches, from RT]
 
   msg2 "0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch"
@@ -225,7 +187,7 @@ _package() {
   echo "$pkgbase" | install -Dm644 /dev/stdin "$modulesdir/pkgbase"
 
   echo "Installing modules..."
-  make INSTALL_MOD_PATH="$pkgdir/usr" modules_install
+  make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 modules_install
 
   # remove build and source links
   rm "$modulesdir"/{source,build}
