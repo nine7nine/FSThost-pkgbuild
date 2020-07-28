@@ -7,7 +7,7 @@
 
 pkgname=wine-nspa
 pkgver=5.9
-pkgrel=18
+pkgrel=19
 
 _pkgbasever=${pkgver/rc/-rc}
 
@@ -29,7 +29,7 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         0056-allow-WINEDLLPATH-override.patch
         ableton_file-read-write-diff.patch
         disable-winedbg-auto-crash-dialog.patch
-        disable-wine-prefix-update-window.patch
+        nspa_wineboot-remove_update_window_hack.patch
         hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch
         NI-drag-and-drop.patch
         0001-wineserver-Draft-to-implement-priority-levels-throug.patch
@@ -43,7 +43,9 @@ source=(https://dl.winehq.org/wine/source/5.x/wine-$_pkgbasever.tar.xz{,.sign}
         nspa_wine-nspa-debug_threadInfo.patch
         nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch
         nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
-        nspa_Fix_order_to_enable_application_window.patch         
+        nspa_Fix_order_to_enable_application_window.patch
+        nspa_Thread_local_implementation-WINELFH.patch
+        ntdll-Run_WT_EXECUTEINWAITTHREAD_serialize_hack.patch
         )
 sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39581a1d91eb947f204a45ac94cc5c931745169a3b63a2aecf8db277553b74b'
             'SKIP'
@@ -60,7 +62,7 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             '4891692e757c06a65c2905ce4927a1e18e89e10200f58f8d6d1cb6f969cbd509eca6f5aee89c1d0b6cb4fbee661036db9bcddc9642971ba8c6b476a328c36138'
             'a65c5fd3ce228a37ec0236f8fb349e308434bb064aa088d3ba51fbf20a275d8bed87ad7f96e7570a09fa8baad698df5ba3df254dff236fda69374431911b0017'
             '3d7f327d7054f6d2e19171784695db7560ee828db9ba518536a0e867449eef06000da519a56fd137385089aef02a8b965f339192435e931f795cf9ede98b49f5'
-            'facb308126f1db4b82f6cfa939582899dc5ccc992eb784d4e90dec807aa64c43491c345f62543378907c15d4da2df1cf2a72a70c7b9632940db1f2659b70c124'
+            '27c3be9ffb77c79bda6c78cd58dc9700519ee3d3f44bb9d0cf0d0c6aca76d21dd09a46bd7690a4a03847dca62e8caeca37d8e567e0761abb1e5b63decbd489ee'
             '41d78d143e8477a9671038989bd1ae85fa1addd6b0cf062624775046a424c560e2745657f314be91b9b4ab757ce6f4b5381d78c63d8dec32e89379203a72891b'
             'd0862315daa26c521921931511941bd92e93a8a32368f3f4137a8c879b1d9ef536486be19eb1baf3dbef4c5283caf6e7defae788431b3fb4e579a84a92c9844d'
             '9d17fa1b1958b6ae2e849582404f6b97e84ed7b6e52c83aa2fae349427edbc542aac021d646606b5162935049273afbacb7d9191df5825ce9359e3b8d70db965'
@@ -74,7 +76,9 @@ sha512sums=('edc6d55a275cf37430a62dc6d6d86bff6d5a434e708dbd99d245018db7f6a0abe39
             'dae8a3d1d7f7045dc28404f109999e5ffcbe05786d7522d08c0f98f39ee502e467b46b25f9f7aa48a8c75ad77a2d660837785dd6850ff0865f984f43df5a6fa1'
             '5a47da088201dc80da71690cda04be284936fabd921597299ccfa87b3724f40689c5cfff635449f6a7cf3072a21e86833e07a62f027e8c5ffc6a60025d9f6900'
             '24e14e7d2c49a4bc5eb695ab7e5b67b575f50c5a56d6db23e6c8afe62918da94d59defe9a2ee2abb8cf794eb64fa0e8768f45df6cbd14067530330c38169110f'
-            'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b')
+            'ce5229e984a5a29449775b91d39657d53274f4035d45dc27ab0c185d5f70daa2eff598aad7b5502fc94ac7e6e54b055f0e7269bd908e1037fa3b7c73d088758b'
+            'aa3b231f9bc004ab4d0d7ecf124db3027470ad2e0c4a8a621886f9c8e9f2c723633c572a8a137206a817bcc0206e8d4e807a8ddb762ce0df6e4ea7eecefff90c'
+            '2041a794c82643cc6c30af05a65e3922fa9641fcfc519ba5a94cad66700289b163e128f0c1f3a6279ec451d4d2122dbe53822ba78747d2d7e9fb7b1c1104890f')
 validpgpkeys=(5AC1A08B03BD7A313E0A955AF5E6E9EEB9461DD7
               DA23579A74D4AD9AF9D3F945CEFAC8EAAF17519D)
 
@@ -218,11 +222,8 @@ prepare() {
   msg "Applying disable-winedbg-auto-crash-dialog.patch"
   patch -s -Np1 -i $srcdir/disable-winedbg-auto-crash-dialog.patch
 
-#  I'm going to re-implement something similar but better to disable for now, as to 
-#  avoid issues with creating wine-prefixes.
-#
-#  msg "Applying disable-wine-prefix-update-window.patch"
-#  patch -s -Np1 -i $srcdir/disable-wine-prefix-update-window.patch
+  msg "Applying nspa_wineboot-remove_update_window_hack.patch"
+  patch -s -Np1 -i $srcdir/nspa_wineboot-remove_update_window_hack.patch
 
   msg "Applying hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch"
   patch -s -Np1 -i $srcdir/hack-for-Ivory-Library-Installer-force-GENERIC_xxx.patch
@@ -263,19 +264,24 @@ prepare() {
   
   msg "Applying nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch"
   patch -s -Np1 -i $srcdir/nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch
-
-#  no need to use. just for my own use.  
-#  msg "Applying nspa_wine-nspa-debug_threadInfo.patch"
-#  patch -s -Np1 -i $srcdir/nspa_wine-nspa-debug_threadInfo.patch 
+ 
+  msg "Applying nspa_kernelbase-implement_SetProcessWorkingSetSize.patch"  
+  patch -s -Np1 -i $srcdir/nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
   
-#  msg "Applying nspa_kernelbase-implement_SetProcessWorkingSetSize.patch"  
-#  patch -s -Np1 -i $srcdir/nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
+  msg "Applying ntdll-Run_WT_EXECUTEINWAITTHREAD_serialize_hack.patch"
+  patch -s -Np1 -i $srcdir/ntdll-Run_WT_EXECUTEINWAITTHREAD_serialize_hack.patch
+  
+  msg "Applying nspa_Thread_local_implementation-WINELFH.patch"
+  patch -s -Np1 -i $srcdir/nspa_Thread_local_implementation-WINELFH.patch 
+
+  # no need to use. just for my own use.  
+  # msg "Applying nspa_wine-nspa-debug_threadInfo.patch"
+  # patch -s -Np1 -i $srcdir/nspa_wine-nspa-debug_threadInfo.patch 
 
   # below applied, but not used anywhere.     
   
   msg "Applying nspa_Fix_order_to_enable_application_window.patch"
   patch -s -Np1 -i $srcdir/nspa_Fix_order_to_enable_application_window.patch
-   
 }
 
 build() {
