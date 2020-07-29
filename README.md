@@ -230,13 +230,13 @@ Wine-NSPA contains some other stuff, as well.
     
     if it doesn't exist, you can create it. here is what an example config looks like;
 ___   
-DefaultLimitRTPRIO=98
-DefaultLimitNOFILE=500000
-DefaultLimitNPROC=500000
-DefaultLimitSIGPENDING=286,816
-DefaultLimitMEMLOCK=unlimited 
-DefaultLimitLOCKS=unlimited
-DefaultLimitNICE=unlimited
+ - DefaultLimitRTPRIO=98
+ - DefaultLimitNOFILE=500000
+ - DefaultLimitNPROC=500000
+ - DefaultLimitSIGPENDING=286,816
+ - DefaultLimitMEMLOCK=unlimited 
+ - DefaultLimitLOCKS=unlimited
+ - DefaultLimitNICE=unlimited
 ___
 
    in my case, I have other maximum (or infinite) values for other resources as well. RT priorities, nice values, 
