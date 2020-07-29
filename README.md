@@ -243,27 +243,8 @@ ___
    number of open files, etc.  But as you can see; i have DefaultlimitMEMLOCK=unlimited set. Distributions should
    provide info on how to configure / learn about the various settings, so I'm not going to cover that here.
    
-   a logout/in is required for setting changes to take effect. You can verify changes via;
-___   
-$ ulimit -a
-core file size          (blocks, -c) unlimited
-data seg size           (kbytes, -d) unlimited
-scheduling priority             (-e) 0
-file size               (blocks, -f) unlimited
-pending signals                 (-i) 286816
-max locked memory       (kbytes, -l) unlimited
-max memory size         (kbytes, -m) unlimited
-open files                      (-n) 500000
-pipe size            (512 bytes, -p) 8
-POSIX message queues     (bytes, -q) 819200
-real-time priority              (-r) 98
-stack size              (kbytes, -s) 8192
-cpu time               (seconds, -t) unlimited
-max user processes              (-u) 500000
-virtual memory          (kbytes, -v) unlimited
-file locks                      (-x) unlimited
-___
-       
+   a logout/in is required for setting changes to take effect. You can verify changes via; ulimit -a
+   
   - fixes for NI Access / newer NI (sub)installers, one-offs and hacks for different programs. 
 
 Another feature on the horizon will be trying to filter RT threads better, as well as moving certain threads completely
