@@ -262,22 +262,23 @@ prepare() {
   msg "Applying nspa_wine-nspa_RT_implementation.patch"
   patch -s -Np1 -i $srcdir/nspa_wine-nspa_RT_implementation.patch
   
+  # no need to use. just for my own use.  
+  # msg "Applying nspa_wine-nspa-debug_threadInfo.patch"
+  # patch -s -Np1 -i $srcdir/nspa_wine-nspa-debug_threadInfo.patch 
+  
   msg "Applying nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch"
   patch -s -Np1 -i $srcdir/nspa_codebase-Fix_SetThreadPriority_calls_in_Wine.patch
- 
-  msg "Applying nspa_kernelbase-implement_SetProcessWorkingSetSize.patch"  
-  patch -s -Np1 -i $srcdir/nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
-  
+
   msg "Applying ntdll-Run_WT_EXECUTEINWAITTHREAD_serialize_hack.patch"
   patch -s -Np1 -i $srcdir/ntdll-Run_WT_EXECUTEINWAITTHREAD_serialize_hack.patch
   
   msg "Applying nspa_Thread_local_implementation-WINELFH.patch"
   patch -s -Np1 -i $srcdir/nspa_Thread_local_implementation-WINELFH.patch 
-
-  # no need to use. just for my own use.  
-  # msg "Applying nspa_wine-nspa-debug_threadInfo.patch"
-  # patch -s -Np1 -i $srcdir/nspa_wine-nspa-debug_threadInfo.patch 
-
+ 
+  # WARNING: this next patch cannot be used with MinGW cross compiler
+  msg "Applying nspa_kernelbase-implement_SetProcessWorkingSetSize.patch"  
+  patch -s -Np1 -i $srcdir/nspa_kernelbase-implement_SetProcessWorkingSetSize.patch
+  
   # below applied, but not used anywhere.     
   
   msg "Applying nspa_Fix_order_to_enable_application_window.patch"

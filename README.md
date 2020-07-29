@@ -61,6 +61,11 @@ I use these staging settings. (wine environment variables)
 The shared memory code indicates that when things get of out synchronization, this feature can cause 
 instability. However, given that synchronization is improved by fsync and additionally made more robust
 by Wine-NSPA's RT support; it makes sense to enable this.
+
+Write copy should reduce memory usage, as a single dll will be loaded into memory, which applications
+share. If an app tries to modify them, then it will be copy-on-write... This could possibly introduce
+bugs - as some of the gamers hit bugs with it - but I have yet to... setting it to =0 disables it.
+
 ____
 FSYNC: 
 
@@ -69,6 +74,10 @@ Fsync support aka: hybrid synchronization in Wine. (requires kernel support).
   Enabled With: (wine environment variables)
   * WINEFSYNC_SPINCOUNT=128
   * WINESYNC=1 (0 - disables).
+  
+NOTE: Technically, I support EventFD Synchronization (Esync) too. But i do not use or test it anymore.
+      Fsync seems to be the better choice. with Esync you can exhaust a system's open file limit (rlimit)
+      and i've read about VSTs that have done just that.
 _____
 WINE-NSPA's RT SUPPORT: 
 
@@ -210,6 +219,51 @@ Wine-NSPA contains some other stuff, as well.
     
     - export WINELFH=0
     
+  - Implementation of Get/SetProcessWorkingSetSize() mapped to RLIMIT_MEMLOCK... This is enabled in v5.9.19+.
+  
+    You likely won't bump into this often in VSTs, but some do make these calls.
+    
+    Much like how one needs to setup resource limits to give JACK / your user realtime privileges, you can specify the
+    memlock and other rlimits too. This can done via DefaultLimitMEMLOCK= in systemd for your user. 
+    
+    /etc/systemd/user.conf.d/user_limits.conf
+    
+    if it doesn't exist, you can create it. here is what an example config looks like;
+___   
+DefaultLimitRTPRIO=98
+DefaultLimitNOFILE=500000
+DefaultLimitNPROC=500000
+DefaultLimitSIGPENDING=286,816
+DefaultLimitMEMLOCK=unlimited 
+DefaultLimitLOCKS=unlimited
+DefaultLimitNICE=unlimited
+___
+
+   in my case, I have other maximum (or infinite) values for other resources as well. RT priorities, nice values, 
+   number of open files, etc.  But as you can see; i have DefaultlimitMEMLOCK=unlimited set. Distributions should
+   provide info on how to configure / learn about the various settings, so I'm not going to cover that here.
+   
+   a logout/in is required for setting changes to take effect. You can verify changes via;
+___   
+$ ulimit -a
+core file size          (blocks, -c) unlimited
+data seg size           (kbytes, -d) unlimited
+scheduling priority             (-e) 0
+file size               (blocks, -f) unlimited
+pending signals                 (-i) 286816
+max locked memory       (kbytes, -l) unlimited
+max memory size         (kbytes, -m) unlimited
+open files                      (-n) 500000
+pipe size            (512 bytes, -p) 8
+POSIX message queues     (bytes, -q) 819200
+real-time priority              (-r) 98
+stack size              (kbytes, -s) 8192
+cpu time               (seconds, -t) unlimited
+max user processes              (-u) 500000
+virtual memory          (kbytes, -v) unlimited
+file locks                      (-x) unlimited
+___
+       
   - fixes for NI Access / newer NI (sub)installers, one-offs and hacks for different programs. 
 
 Another feature on the horizon will be trying to filter RT threads better, as well as moving certain threads completely
