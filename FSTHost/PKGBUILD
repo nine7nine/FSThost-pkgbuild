@@ -3,9 +3,9 @@
 
 pkgname=FSTHost
 pkgver=1.6.3
-pkgrel=1
+pkgrel=2
 pkgdesc='A linux VST host using winelib'
-arch=('i686' 'x86_64')
+arch=('x86_64')
 url='http://sourceforge.net/projects/fsthost/'
 license=('GPL')
 depends=('jack' 'libxml2')
@@ -13,12 +13,6 @@ depends=('jack' 'libxml2')
 _GTK=3 # Use gtk version 3 as default, 0 mean
 [[ $_GTK > 0 ]] && \
 depends+=("gtk${_GTK}")
-
-if [[ $CARCH = 'x86_64' ]]; then
-  export PKG_CONFIG_PATH=/usr/lib32/pkgconfig
-  _arch=32
-  depends+=(${depends[@]/#/lib32-})
-fi
 
 depends+=('wine' 'perl-xml-libxml')
 
@@ -38,18 +32,18 @@ build() {
   patch -Np1 -i $srcdir/wine-NSPA_env.patch
   patch -Np1 -i $srcdir/jamc_silence_logging.patch
      
-  make LIB32_INST_PATH=/usr/lib$_arch \
-       LIB64_INST_PATH=/usr/lib \
+  make fsthost64 LIBDIR64=/usr/lib \
        LASH_EXISTS='no' \
        GTK=0
 }
 
 package() {
   cd $pkgname
-  make LIB32_INST_PATH=/usr/lib$_arch \
-       LIB64_INST_PATH=/usr/lib \
+  make LIBDIR64=/usr/lib \
+       LIBDIR=/usr/lib \
        MANDIR=/usr/share/man/man1 \
-       DESTDIR="$pkgdir" install
+       GTK=0 \
+       DESTDIR="$pkgdir" install64
 }
 
 # vim:set ts=2 sw=2 et:
