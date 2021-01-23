@@ -2,7 +2,7 @@
 # Contributor: Jan Alexander Steffens (heftig) <jan.steffens@gmail.com>
 
 pkgbase=linux-nspa
-pkgver=5.7.10.arch1
+pkgver=5.10.9.arch1
 pkgrel=1
 pkgdesc='Linux'
 _srctag=v${pkgver%.*}-${pkgver##*.}
@@ -10,7 +10,7 @@ url="https://git.archlinux.org/linux.git/log/?h=$_srctag"
 arch=(x86_64)
 license=(GPL2)
 makedepends=(
-  bc kmod libelf pahole
+  bc kmod libelf pahole cpio perl tar xz
   xmlto python-sphinx python-sphinx_rtd_theme graphviz imagemagick
   git
 )
@@ -19,11 +19,9 @@ _srcname=archlinux-linux
 source=(
   "$_srcname::git+https://git.archlinux.org/linux.git?signed#tag=$_srctag"
   config         # the main kernel config file
-  sphinx-workaround.patch
         # [Fixes/misc] 
         pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch
         designware-i2c_IRQF_NO_THREAD.patch
-        pinctrl-amd-Honor-IRQ-trigger-type-requested-by-the-caller.patch
         # [CLear Linux]
         x86-rdrand_do_sanity_check_on_boot.patch
         0108-smpboot-reuse-timer-calibration.patch
@@ -33,15 +31,12 @@ source=(
         0101-i8042-decrease-debug-message-level-to-info.patch
         0111-give-rdrand-some-credit.patch
         0124-locking-rwsem-spin-faster.patch
-        futex-wait-multiple-5.2.1.patch
-        futex-wait-multiple-5.5-deadlock_fix.patch
+        # [Futex code for wine]
+        0001-futex-wait-multiple.patch
+        0002-futex-wait-multiple-proton-compatibility.patch
+        linux-5.10-Futex2.patch
         # [Graysky, linux-ck] gcc optimization patch
-        enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.7+.patch
-        # swait from RT, destined for mainline
-        0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch
-        0002-sched-swait-Add-swait_event_lock_irq.patch
-        0003-workqueue-Use-swait-for-wq_manager_wait.patch
-        0004-workqueue-Convert-the-locks-to-raw-type.patch
+        enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.8+.patch
 )
 validpgpkeys=(
   'ABAF11C65A2970B130ABE3C479BE3E4300411886'  # Linus Torvalds
@@ -49,11 +44,9 @@ validpgpkeys=(
   'A2FF3A36AAA56654109064AB19802F8B0D70FC30'  # Jan Alexander Steffens (heftig)
 )
 sha256sums=('SKIP'
-            'b75d9092846b6abcf52ca99747edfcfdcd61b9533f1bd82430b0534e018fb61b'
-            '8cb21e0b3411327b627a9dd15b8eb773295a0d2782b1a41b2a8839d1b2f5778c'
+            '0426d7c003f2ab0d5bef9e70a18cbbf025c7f730db5957fbf06ee72b3f7ca8df'
             '1e5891100e91830f3cd89ddc88b0373d0d617a4aca2ff214aaabc517d08b633d'
             '10fdab4c1deaa6938be3acb992eac686b716ba08e40bff9b838f439494aa49a0'
-            '417c64d0e74e25c8ee63b80581de87a09c3c19b5db03accc6c07c16e49950138'
             '3abe6ced007b908a0755f71804fb760eba781f1120241394bcffe505469f7cbb'
             'e8ec1aa0e67e37b377e5a9d48416ec6e43d90e7121c29ba012096479c66f4880'
             'c2c89d27c260497f2d31ca6dd60821c19cc3f283aaa8903dd19ace78c2011365'
@@ -62,13 +55,10 @@ sha256sums=('SKIP'
             'f2b93161699370512d4efe0f31b686d99af3a54ab629c78d29d64d4ecd14442b'
             'c1445df6554b80b7b681d4b52ff62527f36b52b1b7d9b59cb68caec967128ced'
             'fbb5cf8e3e44477e06894a8e4e42e44a83682556cbc05bc47334941cbd5fb107'
-            'cbb164c3bc0550018924f75713a76abdc51aa2c3d1b37c12414b80ccb4b96662'
-            '9fed23ccdd6e3d0df128cba1e3d3b0cb627069581f5b0802dd1eee65782b49e3'
-            '1f56a2466bd9b4477925682d8f944fabb38727140e246733214fe50aa326fc47'
-            '650b37be83aae69bc29af8e51757341ec21c550bcffa92af304ba95b4b8a8821'
-            'aef1571a6ba39f21ed33b1adfc58a1e431dfa6b38b20b061d8398238992449b7'
-            'a6f4ff72b5ba7a57cd5673424deb0bd137fa22b2523f7ac86abb86b435cda8fc'
-            '31367679a5115c3d23c4825b0c40aa8aa7a4521c05441b309dbf859359bd4048')
+            'cb37801751ea51bc7e784331132f9390b61e477491f103bec3b48f1e751c79b7'
+            'bbbbc90c25659c16f2697b509a15a3969bf0dd277e81b44718a8149e61b51dbc'
+            '881a80cd13cccbefea0edc1ee9e0cf5ab5dd36d88bce587f9af12faa9a2941d3'
+            '1152904e47fde8f35814e2a7d46fd4f6d974e0ba2a9cc853fc74c2acdb02d960')
 
 export KBUILD_BUILD_HOST=archlinux
 export KBUILD_BUILD_USER=$pkgbase
@@ -82,23 +72,18 @@ prepare() {
   echo "-$pkgrel" > localversion.10-pkgrel
   echo "${pkgbase#linux}" > localversion.20-pkgname
 
-  msg2 "sphinx-workaround.patch..."
-  patch -Np1 -i ../"sphinx-workaround.patch"
-
 ##[My Fixes]
 
   # In order to use 'threaded interrupts', the below drivers must be patched,
   # as amd-pinctl is not an rt-compliant driver && because designware i2c driver
   # will spike a cpu to around 60-70% non-stop :/
 
-  msg2 "pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch..."
-  patch -Np1 -i ../"pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch"
+#  msg2 "pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch..."
+#  patch -Np1 -i ../"pinctrl_amd-IRQF_NO_THREAD_gpio_irqchip.patch"
 
-  msg2 "designware-i2c_IRQF_NO_THREAD.patch..."
-  patch -Np1 -i ../"designware-i2c_IRQF_NO_THREAD.patch"
+#  msg2 "designware-i2c_IRQF_NO_THREAD.patch..."
+#  patch -Np1 -i ../"designware-i2c_IRQF_NO_THREAD.patch"
   
-  msg2 "pinctrl-amd-Honor-IRQ-trigger-type-requested-by-the-caller.patch"
-  patch -Np1 -i ../"pinctrl-amd-Honor-IRQ-trigger-type-requested-by-the-caller.patch"
 
 ##[Clear Linux]
 
@@ -125,33 +110,22 @@ prepare() {
   
 # Implement futex-wait-multiple.  
 
-#  msg2 "futex-wait-multiple-5.2.1.patch"
-#  patch -Np1 -i ../"futex-wait-multiple-5.2.1.patch"
+  msg2 "0001-futex-wait-multiple.patch"
+  patch -Np1 -i ../"0001-futex-wait-multiple.patch"
   
-  msg2 "futex-wait-multiple-5.5-deadlock_fix.patch"
-  patch -Np1 -i ../"futex-wait-multiple-5.5-deadlock_fix.patch"
+  msg2 "0002-futex-wait-multiple-proton-compatibility.patch"
+  patch -Np1 -i ../"0002-futex-wait-multiple-proton-compatibility.patch"
+  
+  msg2 "linux-5.10-Futex2.patch"
+  patch -Np1 -i ../"linux-5.10-Futex2.patch"
 
 ##[Graysky, linux-ck]
 
   # https://github.com/graysky2/kernel_gcc_patch
 
-  msg2 "enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.7+.patch ..."
-  patch -Np1 -i ../"enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.7+.patch"
+  msg2 "enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.8+.patch ..."
+  patch -Np1 -i ../"enable_additional_cpu_optimizations_for_gcc_v10.1+_kernel_v5.8+.patch"
   
-##[Swait related patches, from RT]
-
-  msg2 "0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch"
-  patch -Np1 -i ../"0001-workqueue-Don-t-assume-that-the-callback-has-interru.patch"
-
-  msg2 "0002-sched-swait-Add-swait_event_lock_irq.patch"
-  patch -Np1 -i ../"0002-sched-swait-Add-swait_event_lock_irq.patch"
-
-  msg2 "0003-workqueue-Use-swait-for-wq_manager_wait.patch"
-  patch -Np1 -i ../"0003-workqueue-Use-swait-for-wq_manager_wait.patch"
-
-  msg2 "0004-workqueue-Convert-the-locks-to-raw-type.patch"
-  patch -Np1 -i ../"0004-workqueue-Convert-the-locks-to-raw-type.patch"
-
   echo "Setting config..."
   cp ../config .config
   make olddefconfig
@@ -262,6 +236,9 @@ _package-headers() {
         strip -v $STRIP_SHARED "$file" ;;
     esac
   done < <(find "$builddir" -type f -perm -u+x ! -name vmlinux -print0)
+
+  echo "Stripping vmlinux..."
+  strip -v $STRIP_STATIC "$builddir/vmlinux"
 
   echo "Adding symlink..."
   mkdir -p "$pkgdir/usr/src"
