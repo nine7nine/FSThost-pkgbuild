@@ -1,9 +1,10 @@
  - LPA is dead. has been for years. remove these env variables
- - add Wine-NSPA support / replace staging vars.
+ - add Wine-tkg NSPA support / replace staging vars.
+ - some of these require non-public code (for now)
 
 --- a/Makefile.orig	2020-07-15 15:33:06.172982452 -0400
 +++ b/Makefile	2020-07-15 15:32:54.929859424 -0400
-@@ -178,11 +178,10 @@ fsthost%: $(C_SRCS:.c=_%.o)
+@@ -178,11 +178,19 @@ fsthost%: $(C_SRCS:.c=_%.o)
  	sed -i -e 's|-n "$$appdir"|-r "$$appdir/$$appname"|' \
  		-e 's|.exe.so|.so|' \
  		-e '3i export WINEPATH="$(LIBDIR_WINE)"' \
@@ -11,13 +12,24 @@
 -		-e '3i export WINE_RT=$${WINE_RT:-10}' \
 -		-e '3i export STAGING_RT_PRIORITY_SERVER=$${STAGING_RT_PRIORITY_SERVER:-15}' \
 -		-e '3i export STAGING_RT_PRIORITY_BASE=$${STAGING_RT_PRIORITY_BASE:-0}' \
-+		-e '3i export WINEFSYNC_SPINCOUNT=$${WINEFSYNC_SPINCOUNT=128}' \
-+		-e '3i export WINESYNC=$${WINESYNC=1}' \
-+		-e '3i export NSPA_THREAD_INFO=$${NSPA_THREAD_INFO:-1}' \
-+		-e '3i export STAGING_WRITECOPY=$${STAGING_WRITECOPY:-1}' \
- 		-e '3i export STAGING_SHARED_MEMORY=$${STAGING_SHARED_MEMORY:-1}' \
+-		-e '3i export STAGING_SHARED_MEMORY=$${STAGING_SHARED_MEMORY:-1}' \
 -		-e '3i export L_ENABLE_PIPE_SYNC_FOR_APP="$@"' \
 -		-e '3i export L_RT_POLICY="$${L_RT_POLICY:-FF}"' \
 -		-e '3i export L_RT_PRIO=$${L_RT_PRIO:-10}' $@
++		-e '3i export WINE_RT_PRIO=$${WINE_RT_PRIO=:-1}' \
++		-e '3i export WINE_RT_POLICY="$${NDTLL_RT_POLICY:-RR}"' \
++		-e '3i export WINE_RT_PRIO=$${NDTLL_RT_PRIO=:-1}' \
 +		-e '3i export WINE_RT_POLICY="$${WINE_RT_POLICY:-RR}"' \
-+		-e '3i export WINE_RT_PRIO=$${WINE_RT_PRIO=:-1}' $@
++		-e '3i # export NTDLL_RT_BYPASS=1' \
++		-e '3i export WINEESYNC=$${WINEESYNC=1}' \
++		-e '3i export WINEFSYNC=$${WINEFSYNC=1}' \
++		-e '3i export WINEFSYNC_SPINCOUNT=$${WINEFSYNC_SPINCOUNT=128}' \
++		-e '3i export WINE_DISABLE_FAST_SYNC=0' \
++		-e '3i export WINE_LOGICAL_CPUS_AS_CORES=1' \
++		-e '3i export WINE_LARGE_ADDRESS_AWARE=1' \
++		-e '3i export STAGING_SHARED_MEMORY=0' \		
++		-e '3i export STAGING_WRITECOPY=0' \
++		-e '3i export WINE_DISABLE_KERNEL_WRITEWATCH=0' \
++		-e '3i export WINEDEBUG=-all' \
++		-e '3i export WINEPREFIX=/Winebox/winebox-master' $@
+

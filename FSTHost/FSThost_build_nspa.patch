@@ -1,0 +1,185 @@
+
+ - Kill the 32 bit build. I don't use any 32bit software.
+ - add my own startup script that is simple.
+ 
+ All that is needed it to put the binary somwhere and 
+ set the FSTHOST env variable to it. Then execute it with
+ the correct path to the VST.
+ 
+ have not tested with all of the perl fst_list crap.
+ 
+ later I will fix the installation paths in the makefile,
+ but for now; I can handle that in the PKGBUILD.
+
+diff -Npur a/fsthost64_nspa b/fsthost64_nspa
+--- a/fsthost64_nspa	1969-12-31 19:00:00.000000000 -0500
++++ b/fsthost64_nspa	2022-05-25 17:15:58.863959453 -0500
+@@ -0,0 +1,33 @@
++#!/bin/sh
++
++# Set the Wine-Prefix
++export WINEPREFIX=/home/ninez/Winebox/winebox-master
++# Set wine path
++export WINEPATH="/usr/lib"
++# RT policy should be FF
++export WINE_RT_PRIO=78
++export WINE_RT_POLICY="FF"
++# RT policy should be RR and low RT prio
++export NTDLL_RT_PRIO=5
++export NTDLL_RT_POLICY="RR"
++# Esync/Fsync
++export WINEESYNC=1
++export WINEFSYNC=1
++export WINEFSYNC_SPINCOUNT=128
++# Winesync/Fastsync
++# export WINE_DISABLE_FAST_SYNC=0
++# Proton's Logical cpus override
++export WINE_LOGICAL_CPUS_AS_CORES=1
++# Large Address Awareness
++export WINE_LARGE_ADDRESS_AWARE=1
++# From Staging
++export STAGING_WRITECOPY=0
++# don't use with staging writecopy
++export WINE_DISABLE_KERNEL_WRITEWATCH=0
++# disable debugging/spam
++export WINEDEBUG=-all
++
++export FSTHOST='/home/ninez/Winebox/bin/fsthost64.so'
++
++# and try to start the app
++exec wine64 "$FSTHOST" "$@"
+diff -Npur a/Makefile b/Makefile
+--- a/Makefile	2022-05-25 17:23:38.082671483 -0500
++++ b/Makefile	2022-05-25 17:19:58.230962117 -0500
+@@ -4,10 +4,9 @@ LINK               := winegcc
+ SRCDIR             := .
+ GTK                := 3
+ VUMETER            := 0
+-PKG_CONFIG_PATH32   = $(LIBDIR32)/pkgconfig
+ PKG_CONFIG_PATH64   =
+ PKGCP               =
+-LIBDIR              =
++LIBDIR              = /usr/lib
+ LBITS              != getconf LONG_BIT
+ LASH                = $(shell PKG_CONFIG_PATH=$(PKGCP) pkg-config --exists lash-1.0 && echo 1 || echo 0)
+ D_CEXTRA           :=
+@@ -15,9 +14,7 @@ PKG_CONFIG_MODULES := jack libxml-2.0
+ 
+ # On 64 bit platform build also fsthost64
+ ifeq ($(LBITS), 64)
+-PLAT               := 32 64
+-else
+-PLAT               := 32
++PLAT               := 64
+ endif
+ 
+ # Modules / Features
+@@ -63,17 +60,14 @@ DESTDIR            :=
+ PREFIX             := /usr
+ MANDIR             := $(PREFIX)/man/man1
+ ICONDIR            := $(PREFIX)/share/icons/hicolor/32x32/apps
+-LIBDIR32           := $(PREFIX)/lib/i386-linux-gnu
+-LIBDIR64           := $(PREFIX)/lib/x86_64-linux-gnu
++LIBDIR64           := $(PREFIX)/lib
+ BINDIR             := $(PREFIX)/bin
+-LIBDIR_WINE         = $(LIBDIR)/wine
++LIBDIR_WINE         = $(LIBDIR)
+ 
+ # Platform specific GCC flags
+-CEXTRA32           := -m32
+ CEXTRA64           := -m64 
+ 
+ # Platform specific LDFLAGS
+-LDFLAGS32          := -m32
+ LDFLAGS64          := -m64
+ 
+ ### Global source lists
+@@ -94,19 +88,6 @@ C_SRCS             += $(wildcard $(C_SRC
+ 
+ EXES               := $(PLAT:%=fsthost%) fsthost_list
+ 
+-# Variables for 32/64bit versions respectively
+-fsthost32: PKGCP    = $(PKG_CONFIG_PATH32)
+-fsthost64: PKGCP    = $(PKG_CONFIG_PATH64)
+-
+-fsthost32: LDFLAGS += $(LDFLAGS32)
+-fsthost64: LDFLAGS += $(LDFLAGS64)
+-
+-fsthost32: CEXTRA  += $(CEXTRA32)
+-fsthost64: CEXTRA  += $(CEXTRA64)
+-
+-fsthost32: LIBDIR   = $(LIBDIR32)
+-fsthost64: LIBDIR   = $(LIBDIR64)
+-
+ ### Generic targets
+ all: $(EXES)
+ 
+@@ -114,17 +95,17 @@ all: $(EXES)
+ .PHONY: all clean dummy install
+ 
+ # Implicit rules
+-.SUFFIXES: _64.o _32.o
++.SUFFIXES: _64.o
+ DEFINCL = $(INCLUDE_PATH) $(DEFINES) $(OPTIONS)
+ 
+-.c_64.o .c_32.o:
++.c_64.o:
+ 	$(CC) -c $(CFLAGS) $(CEXTRA) $(DEFINCL) -o $@ $<
+ 
+ # Rules for cleaning
+ ALL_OBJS = $(C_SRCS:.c=_*.o)
+ CLEAN_FILES = fsthost_menu.1 *.dbg.c y.tab.c y.tab.h lex.yy.c core *.orig *.rej fsthost.exe* \\\#*\\\# *~ *% .\\\#*
+ clean:
+-	$(RM) $(CLEAN_FILES) $(ALL_OBJS) $(EXES:=.dbg.o) $(EXES:=.so) $(EXES)
++	$(RM) $(CLEAN_FILES) $(ALL_OBJS) $(EXES:=.dbg.o) $(EXES:=.so)
+ 
+ # Do not remove intermediate files
+ .SECONDARY: $(ALL_OBJS)
+@@ -145,10 +126,6 @@ install-noarch:
+ 	install -Dm 0755 perl/fsthost_menu.pl $(DESTDIR)$(BINDIR)/fsthost_menu
+ 	install -Dm 0755 perl/fsthost_ctrl.pl $(DESTDIR)$(BINDIR)/fsthost_ctrl
+ 
+-fsthost32_install: fsthost32
+-	install -Dm 0644 $<.so $(DESTDIR)$(LIBDIR_WINE)/$<.so
+-	install -Dm 0755 $< $(DESTDIR)$(BINDIR)/$<
+-
+ fsthost64_install: fsthost64
+ 	install -Dm 0644 $<.so $(DESTDIR)$(LIBDIR_WINE)/$<.so
+ 	install -Dm 0755 $< $(DESTDIR)$(BINDIR)/$<
+@@ -156,12 +133,6 @@ fsthost64_install: fsthost64
+ fsthost_list_install: fsthost_list
+ 	install -Dm 0755 $< $(DESTDIR)$(BINDIR)/$<
+ 
+-install: $(EXES:=_install) install-noarch install-man install-icon
+-	ln -fs fsthost32 $(DESTDIR)$(BINDIR)/fsthost
+-
+-install32: fsthost32_install install-noarch install-man install-icon
+-	ln -fs fsthost32 $(DESTDIR)$(BINDIR)/fsthost
+-
+ install64: fsthost64_install install-noarch install-man install-icon
+ 	ln -fs fsthost64 $(DESTDIR)$(BINDIR)/fsthost
+ 
+@@ -174,23 +145,3 @@ fsthost%: $(C_SRCS:.c=_%.o)
+ 	mv $@.exe $@		# Fix script name
+ 	mv $@.exe.so $@.so	# Fix library name
+ 
+-	# Script postprocessing
+-	sed -i -e 's|-n "$$appdir"|-r "$$appdir/$$appname"|' \
+-		-e 's|.exe.so|.so|' \
+-		-e '3i export WINEPATH="$(LIBDIR_WINE)"' \
+-		-e '3i export WINE_RT_PRIO=$${WINE_RT_PRIO=:-1}' \
+-		-e '3i export WINE_RT_POLICY="$${NDTLL_RT_POLICY:-RR}"' \
+-		-e '3i export WINE_RT_PRIO=$${NDTLL_RT_PRIO=:-1}' \
+-		-e '3i export WINE_RT_POLICY="$${WINE_RT_POLICY:-RR}"' \
+-		-e '3i # export NTDLL_RT_BYPASS=1' \
+-		-e '3i export WINEESYNC=$${WINEESYNC=1}' \
+-		-e '3i export WINEFSYNC=$${WINEFSYNC=1}' \
+-		-e '3i export WINEFSYNC_SPINCOUNT=$${WINEFSYNC_SPINCOUNT=128}' \
+-		-e '3i export WINE_DISABLE_FAST_SYNC=0' \
+-		-e '3i export WINE_LOGICAL_CPUS_AS_CORES=1' \
+-		-e '3i export WINE_LARGE_ADDRESS_AWARE=1' \
+-		-e '3i export STAGING_SHARED_MEMORY=0' \		
+-		-e '3i export STAGING_WRITECOPY=0' \
+-		-e '3i export WINE_DISABLE_KERNEL_WRITEWATCH=0' \
+-		-e '3i export WINEDEBUG=-all' \
+-		-e '3i export WINEPREFIX=/Winebox/winebox-masterl' $@

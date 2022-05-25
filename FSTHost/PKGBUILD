@@ -2,8 +2,8 @@
 # Contributor: speps <speps at aur dot archlinux dot org>
 
 pkgname=FSTHost
-pkgver=1.6.3
-pkgrel=2
+pkgver=1.6.4
+pkgrel=1
 pkgdesc='A linux VST host using winelib'
 arch=('x86_64')
 url='http://sourceforge.net/projects/fsthost/'
@@ -19,11 +19,13 @@ depends+=('wine' 'perl-xml-libxml')
 source=("git+https://github.com/nine7nine/FSTHost.git"
         win32_prio_corrected.patch
         jamc_silence_logging.patch
-        wine-NSPA_env.patch)
+        wine-NSPA_env.patch
+        FSThost_build_nspa.patch)
 md5sums=('SKIP'
          'f62350e9032c39c952ba036f690c43ec'
          '1e5ca84ece8bc67ed0ddd522cf79e4a5'
-         'e5bf8bf56a4fdc9b27521b473e23c7da')
+         '5ca2c19ca748958d9001a1d4f89e626f'
+         '45dc9db3d78fb7e9510d7953d3fcc9e2')
 
 build() {
   cd $pkgname
@@ -31,16 +33,17 @@ build() {
   patch -Np1 -i $srcdir/win32_prio_corrected.patch
   patch -Np1 -i $srcdir/wine-NSPA_env.patch
   patch -Np1 -i $srcdir/jamc_silence_logging.patch
+  patch -Np1 -i $srcdir/FSThost_build_nspa.patch
      
-  make fsthost64 LIBDIR64=/usr/lib \
-       LASH_EXISTS='no' \
-       GTK=0
+  make LASH_EXISTS='no' GTK=0
+  
+  #replace the script
+  cp fsthost64_nspa fsthost64 
 }
 
 package() {
   cd $pkgname
   make LIBDIR64=/usr/lib \
-       LIBDIR=/usr/lib \
        MANDIR=/usr/share/man/man1 \
        GTK=0 \
        DESTDIR="$pkgdir" install64
